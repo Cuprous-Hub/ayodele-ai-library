@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+{% block title %}{{ document.title }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <p class="lede mono" style="margin-bottom:4px;">
+      {% if current_user.is_teacher %}
+        <a href="{{ url_for('teacher.course_detail', course_id=course.id) }}">&larr; {{ course.name }}</a>
+      {% else %}
+        <a href="{{ url_for('student.course_detail', course_id=course.id) }}">&larr; {{ course.name }}</a>
+      {% endif %}
+    </p>
+    <h1>{{ document.title }}</h1>
+    <p class="lede">{{ document.file_type|upper }} · uploaded {{ document.uploaded_at.strftime('%d %b %Y') }}</p>
+  </div>
+  <a href="{{ url_for('download_document', document_id=document.id) }}" class="btn btn-outline">Download original</a>
+</div>
+
+{% if document.status == 'done' %}
+  {% set summary = document.get_summary() %}
+  {% if summary %}
+    <div class="card" style="margin-bottom:24px;">
+      <span class="ai-chip">✦ AI Summary</span>
+      <p class="overview" style="font-size:1.02rem;">{{ summary.overview }}</p>
+
+      {% if summary.key_topics %}
+        <strong style="font-size:0.85rem;">Key topics</strong>
+        <ul class="topic-list">
+          {% for topic in summary.key_topics %}
+            <li>{{ topic }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+
+      {% if summary.key_terms %}
+        <strong style="font-size:0.85rem;">Key terms</strong>
+        <ul class="term-list">
+          {% for item in summary.key_terms %}
+            <li><strong>{{ item.term }}</strong> &mdash; {{ item.definition }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    </div>
+  {% endif %}
+{% elif document.status == 'failed' %}
+  <div class="card" style="margin-bottom:24px; border-color:#f0c9bc;">
+    <p style="color:var(--danger);">Summary failed: {{ document.error_message }}</p>
+  </div>
+{% else %}
+  <div class="card" style="margin-bottom:24px;">
+    <p style="color:var(--muted);">Summary is still processing&hellip; refresh in a moment.</p>
+  </div>
+{% endif %}
+
+{% if document.full_text %}
+  <div class="card" style="margin-bottom:24px;">
+    <h3 style="margin-bottom:4px;">Ask a question about this document</h3>
+    <p style="color:var(--muted); font-size:0.85rem; margin-top:0; margin-bottom:16px;">
+      Answers come only from this document's content.
+    </p>
+    <form id="ask-form" style="display:flex; gap:10px; margin-bottom:18px; flex-wrap:wrap;">
+      <input type="text" id="question-input" style="flex:1; min-width:200px;"
+             placeholder="e.g. What's the difference between reflection and refraction?" required>
+      <button type="submit" class="btn btn-primary" id="ask-btn">Ask</button>
+    </form>
+    <div id="qa-thread"></div>
+  </div>
+{% endif %}
+
+{% if document.full_text %}
+  <details class="full-text card">
+    <summary>View full extracted text</summary>
+    <pre>{{ document.full_text }}</pre>
+  </details>
+{% endif %}
+
+{% if document.full_text %}
+<script>
+  const askForm = document.getElementById('ask-form');
+  const questionInput = document.getElementById('question-input');
+  const askBtn = document.getElementById('ask-btn');
+  const qaThread = document.getElementById('qa-thread');
+  const askUrl = "{{ url_for('ask_document', document_id=document.id) }}";
+
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  askForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const question = questionInput.value.trim();
+    if (!question) return;
+
+    const qaPair = document.createElement('div');
+    qaPair.className = 'qa-pair';
+    qaPair.innerHTML = '<p class="qa-question">' + escapeHtml(question) + '</p>'
+      + '<p class="qa-answer qa-loading">Thinking&hellip;</p>';
+    qaThread.prepend(qaPair);
+
+    questionInput.value = '';
+    askBtn.disabled = true;
+
+    try {
+      const res = await fetch(askUrl, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({question: question}),
+      });
+      const data = await res.json();
+      const answerEl = qaPair.querySelector('.qa-answer');
+      answerEl.classList.remove('qa-loading');
+      if (res.ok) {
+        answerEl.textContent = data.answer;
+      } else {
+        answerEl.textContent = data.error || 'Something went wrong.';
+        answerEl.classList.add('qa-error');
+      }
+    } catch (err) {
+      const answerEl = qaPair.querySelector('.qa-answer');
+      answerEl.classList.remove('qa-loading');
+      answerEl.classList.add('qa-error');
+      answerEl.textContent = 'Could not reach the server. Please try again.';
+    } finally {
+      askBtn.disabled = false;
+    }
+  });
+</script>
+{% endif %}
+{% endblock %}

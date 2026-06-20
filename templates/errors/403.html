@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}Access denied{% endblock %}
+{% block content %}
+<div class="empty-state card" style="max-width:480px; margin:40px auto;">
+  <h3>You don't have access to that page</h3>
+  <p>It may belong to another teacher's course, or require a different account type.</p>
+  <a href="{{ url_for('home') }}" class="btn btn-primary">Go home</a>
+</div>
+{% endblock %}

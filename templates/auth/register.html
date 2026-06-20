@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% block title %}Sign up{% endblock %}
+{% block content %}
+<div class="auth-shell" style="min-height:auto; margin:-40px -24px;">
+  <div class="auth-side" style="flex:none; width:38%;">
+    <div class="ruled"></div>
+    <div class="margin-rule"></div>
+    <div>
+      <h1>Join the library.</h1>
+      <p class="tagline">Teachers upload course material. Students read AI summaries anytime.</p>
+    </div>
+    <div></div>
+  </div>
+  <div class="auth-form-wrap" style="flex:1;">
+    <div class="auth-form-card">
+      <h2>Create your account</h2>
+      <p class="subtitle">Choose your role to get started.</p>
+      <form method="POST" id="register-form">
+        <div class="form-group">
+          <label>I am a&hellip;</label>
+          <div class="role-toggle">
+            <label class="role-option" id="opt-student">
+              <input type="radio" name="role" value="student"
+                     {% if form.get('role', 'student') == 'student' %}checked{% endif %}>
+              Student
+            </label>
+            <label class="role-option" id="opt-teacher">
+              <input type="radio" name="role" value="teacher"
+                     {% if form.get('role') == 'teacher' %}checked{% endif %}>
+              Teacher
+            </label>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="full_name">Full name</label>
+          <input type="text" id="full_name" name="full_name" required
+                 value="{{ form.get('full_name', '') }}">
+        </div>
+        <div class="form-group">
+          <label for="email">Email</label>
+          <input type="email" id="email" name="email" required
+                 value="{{ form.get('email', '') }}">
+        </div>
+
+        <div class="form-group" id="level-group" style="display:none;">
+          <label for="level">Class level</label>
+          <select id="level" name="level">
+            <option value="" disabled {% if not form.get('level') %}selected{% endif %}>Select your class</option>
+            {% for level in levels %}
+              <option value="{{ level }}" {% if form.get('level') == level %}selected{% endif %}>{{ level }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="password">Password</label>
+          <input type="password" id="password" name="password" required minlength="6">
+          <div class="hint">At least 6 characters.</div>
+        </div>
+        <div class="form-group">
+          <label for="confirm_password">Confirm password</label>
+          <input type="password" id="confirm_password" name="confirm_password" required minlength="6">
+        </div>
+
+        <div class="form-group" id="teacher-code-group" style="display:none;">
+          <label for="teacher_code">Teacher sign-up code</label>
+          <input type="text" id="teacher_code" name="teacher_code">
+          <div class="hint">Ask the school admin for this code.</div>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-block">Create account</button>
+      </form>
+      <p class="auth-switch">Already have an account? <a href="{{ url_for('auth.login') }}">Log in</a></p>
+    </div>
+  </div>
+</div>
+
+<script>
+  const studentOpt = document.getElementById('opt-student');
+  const teacherOpt = document.getElementById('opt-teacher');
+  const codeGroup = document.getElementById('teacher-code-group');
+  const levelGroup = document.getElementById('level-group');
+
+  function syncRoleUI() {
+    const isTeacher = teacherOpt.querySelector('input').checked;
+    studentOpt.classList.toggle('active', !isTeacher);
+    teacherOpt.classList.toggle('active', isTeacher);
+    codeGroup.style.display = isTeacher ? 'block' : 'none';
+    levelGroup.style.display = isTeacher ? 'none' : 'block';
+  }
+  studentOpt.addEventListener('click', () => {
+    studentOpt.querySelector('input').checked = true;
+    syncRoleUI();
+  });
+  teacherOpt.addEventListener('click', () => {
+    teacherOpt.querySelector('input').checked = true;
+    syncRoleUI();
+  });
+  syncRoleUI();
+</script>
+{% endblock %}

@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}AYODELE COLLEGE OF EXCELLENCE'S AI Library{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <a href="{{ url_for('home') }}" class="brand">
+     <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Ayodele Schools logo" style="width:36px; height:36px; border-radius:50%;">
+     Ayodele College of Excellence
+    </a>
+      <nav class="topnav">
+        {% if current_user.is_authenticated %}
+          {% if current_user.is_teacher %}
+            <a href="{{ url_for('teacher.dashboard') }}">My Courses</a>
+            <a href="{{ url_for('teacher.course_new') }}">+ New Course</a>
+          {% else %}
+            <a href="{{ url_for('student.dashboard') }}">My Courses</a>
+          {% endif %}
+          <span class="user-chip">{{ current_user.full_name }} · {{ current_user.role }}</span>
+          <a href="{{ url_for('auth.logout') }}">Log out</a>
+        {% else %}
+          <a href="{{ url_for('auth.login') }}">Log in</a>
+          <a href="{{ url_for('auth.register') }}">Sign up</a>
+        {% endif %}
+      </nav>
+    </header>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="flashes">
+          {% for category, message in messages %}
+            <div class="flash flash-{{ category }}">{{ message }}</div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    <main class="main">
+      {% block content %}{% endblock %}
+    </main>
+
+    <footer class="site-footer">Built for A.C.E ~ Built By Omosebi Micheal King.</footer>
+  </div>
+</body>
+</html>

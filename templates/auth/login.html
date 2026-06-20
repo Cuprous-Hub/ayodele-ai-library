@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Log in{% endblock %}
+{% block content %}
+<div class="auth-shell" style="min-height:auto; margin:-40px -24px;">
+  <div class="auth-side" style="flex:none; width:38%;">
+    <div class="ruled"></div>
+    <div class="margin-rule"></div>
+    <div>
+      <h1>Welcome back.</h1>
+      <p class="tagline">Pick up your course outlines right where you left off.</p>
+    </div>
+    <div></div>
+  </div>
+  <div class="auth-form-wrap" style="flex:1;">
+    <div class="auth-form-card">
+      <h2>Log in</h2>
+      <p class="subtitle">Enter your details to access your dashboard.</p>
+      <form method="POST">
+        <div class="form-group">
+          <label for="email">Email</label>
+          <input type="email" id="email" name="email" required autofocus>
+        </div>
+        <div class="form-group">
+          <label for="password">Password</label>
+          <input type="password" id="password" name="password" required>
+        </div>
+        <button type="submit" class="btn btn-primary btn-block">Log in</button>
+      </form>
+      <p class="auth-switch">No account yet? <a href="{{ url_for('auth.register') }}">Sign up</a></p>
+    </div>
+  </div>
+</div>
+{% endblock %}
