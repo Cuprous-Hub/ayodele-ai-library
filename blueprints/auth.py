@@ -32,7 +32,7 @@ def register():
             errors.append("Passwords do not match.")
         if role not in ("teacher", "student"):
             errors.append("Please select whether you are a teacher or a student.")
-        if role == "teacher" and teacher_code != current_app.config["TEACHER_SIGNUP_CODE"]:
+        if role == "teacher" and teacher_code.strip().upper() != current_app.config["TEACHER_SIGNUP_CODE"].strip().upper():
             errors.append("That teacher sign-up code is incorrect.")
         if role == "student" and level not in current_app.config["LEVELS"]:
             errors.append("Please select your class level.")
