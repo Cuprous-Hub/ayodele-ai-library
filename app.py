@@ -17,7 +17,11 @@ def create_app():
 
     db.init_app(app)
     login_manager.init_app(app)
+    from flask import send_from_directory
 
+    @app.route('/sw.js')
+    def service_worker():
+        return send_from_directory('static', 'sw.js', mimetype='application/javascript')
     from blueprints.auth import auth_bp
     from blueprints.teacher import teacher_bp
     from blueprints.student import student_bp

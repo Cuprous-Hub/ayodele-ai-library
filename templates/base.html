@@ -1,10 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{% block title %}AYODELE COLLEGE OF EXCELLENCE'S AI Library{% endblock %}</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+  <meta name="theme-color" content="#0d47a1">
 </head>
 <body>
   <div class="app-shell">
@@ -44,7 +47,17 @@
       {% block content %}{% endblock %}
     </main>
 
-    <footer class="site-footer">Built for A.C.E ~ Built By Omosebi Micheal King.</footer>
+    <footer class="site-footer">Built By Omosebi Micheal King.</footer>
   </div>
+
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+          .then(reg => console.log('SW registered:', reg.scope))
+          .catch(err => console.log('SW registration failed:', err));
+      });
+    }
+  </script>
 </body>
 </html>
