@@ -9,8 +9,8 @@ from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 
 from extensions import db
-from models import Course, Document
-from utils.decorators import teacher_required
+from models import Course, Document, User
+from utils.decorators import teacher_required, class_teacher_required
 from utils.file_parser import extract_text, ExtractionError
 from utils.ai_summarizer import summarize_document, SummarizationError
 
@@ -212,4 +212,107 @@ def delete_course(course_id):
         shutil.rmtree(course_folder, ignore_errors=True)
 
     flash(f"Course '{course.name}' deleted.", "info")
+    return redirect(url_for("teacher.dashboard"))
+
+
+@teacher_bp.route("/settings/class", methods=["GET", "POST"])
+@login_required
+@teacher_required
+def class_settings():
+    if request.method == "POST":
+        wants_class = request.form.get("is_class_teacher") == "yes"
+        chosen_level = request.form.get("assigned_level", "")
+
+        if wants_class:
+            if chosen_level not in current_app.config["LEVELS"]:
+                flash("Please select a valid class level.", "danger")
+                return redirect(url_for("teacher.class_settings"))
+            current_user.is_class_teacher = True
+            current_user.assigned_level = chosen_level
+            flash(f"You're now set as the class teacher for {chosen_level}.", "success")
+        else:
+            current_user.is_class_teacher = False
+            current_user.assigned_level = None
+            flash("You're no longer marked as a class teacher.", "info")
+
+        db.session.commit()
+        return redirect(url_for("teacher.dashboard"))
+
+    counts = {}
+    for lvl in current_app.config["LEVELS"]:
+        counts[lvl] = User.query.filter_by(
+            role="teacher", is_class_teacher=True, assigned_level=lvl
+        ).filter(User.id != current_user.id).count()
+
+    return render_template(
+        "teacher/class_settings.html",
+        levels=current_app.config["LEVELS"],
+        counts=counts,
+    )
+
+
+@teacher_bp.route("/promote", methods=["GET"])
+@login_required
+@class_teacher_required
+def promote_view():
+    target_level = current_user.assigned_level
+    if not target_level:
+        flash("You are not currently assigned to a class.", "warning")
+        return redirect(url_for("teacher.dashboard"))
+
+    students = (
+        User.query.filter_by(role="student", level=target_level)
+        .order_by(User.full_name)
+        .all()
+    )
+    return render_template(
+        "teacher/promote.html",
+        students=students,
+        current_level=target_level,
+        levels=current_app.config["LEVELS"],
+    )
+
+
+@teacher_bp.route("/promote/toggle-repeat/<int:student_id>", methods=["POST"])
+@login_required
+@class_teacher_required
+def toggle_repeat(student_id):
+    student = User.query.get_or_404(student_id)
+    if student.level != current_user.assigned_level:
+        abort(403)
+
+    student.is_repeating = not student.is_repeating
+    db.session.commit()
+    return redirect(url_for("teacher.promote_view"))
+
+
+@teacher_bp.route("/promote/confirm", methods=["POST"])
+@login_required
+@class_teacher_required
+def promote_confirm():
+    current_level = current_user.assigned_level
+    new_level = request.form.get("new_level", "")
+
+    if not current_level:
+        flash("You are not currently assigned to a class.", "warning")
+        return redirect(url_for("teacher.dashboard"))
+
+    if new_level not in current_app.config["LEVELS"]:
+        flash("Please select a valid target level.", "danger")
+        return redirect(url_for("teacher.promote_view"))
+
+    students_to_promote = User.query.filter_by(
+        role="student", level=current_level, is_repeating=False
+    ).all()
+
+    count = len(students_to_promote)
+    for student in students_to_promote:
+        student.promote_to(new_level)
+
+    db.session.commit()
+
+    flash(
+        f"Promoted {count} student(s) from {current_level} to {new_level}.",
+        "success",
+    )
     return redirect(url_for("teacher.dashboard"))

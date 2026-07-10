@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block title %}Promote {{ current_level }}{% endblock %}
+{% block content %}
+{% set promote_count = students|rejectattr('is_repeating')|list|length %}
+{% set repeat_count = students|selectattr('is_repeating')|list|length %}
+<div class="page-header">
+  <div>
+    <span class="level-tag">{{ current_level }}</span>
+    <h1>Promote {{ current_level }}</h1>
+    <p class="lede mono">{{ students|length }} student(s) in this class</p>
+  </div>
+</div>
+
+<div class="card" style="margin-bottom:32px;">
+  <h3 style="margin-bottom:6px;">Mark repeating students first</h3>
+  <p class="hint" style="margin-bottom:18px;">
+    Toggle "Repeating" for any student who should stay in {{ current_level }} instead of
+    moving up. Everyone else will be promoted when you confirm below.
+  </p>
+
+  {% if students %}
+    <table class="promote-table" style="width:100%; border-collapse:collapse;">
+      <thead>
+        <tr style="text-align:left; border-bottom:1px solid var(--border);">
+          <th style="padding:10px 8px;">Name</th>
+          <th style="padding:10px 8px;">Email</th>
+          <th style="padding:10px 8px;">Status</th>
+          <th style="padding:10px 8px;"></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for student in students %}
+        <tr style="border-bottom:1px solid var(--border);">
+          <td style="padding:10px 8px;">{{ student.full_name }}</td>
+          <td style="padding:10px 8px; color:var(--muted);">{{ student.email }}</td>
+          <td style="padding:10px 8px;">
+            {% if student.is_repeating %}
+              <span class="level-tag" style="background:var(--danger, #c0392b);">Repeating</span>
+            {% else %}
+              <span class="hint">Promoting</span>
+            {% endif %}
+          </td>
+          <td style="padding:10px 8px; text-align:right;">
+            <form method="POST" action="{{ url_for('teacher.toggle_repeat', student_id=student.id) }}">
+              <button type="submit" class="btn btn-danger-outline btn-sm">
+                {% if student.is_repeating %}Unmark{% else %}Mark repeating{% endif %}
+              </button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <div class="empty-state card">
+      <h3>No students yet</h3>
+      <p>There are currently no students registered under {{ current_level }}.</p>
+    </div>
+  {% endif %}
+</div>
+
+{% if students %}
+<div class="card upload-box">
+  <h3 style="margin-bottom:14px;">Confirm promotion</h3>
+  <p class="hint" style="margin-bottom:18px;">
+    {{ promote_count }} student(s) will move to the new level you select below.
+    {{ repeat_count }} student(s) marked repeating will stay in {{ current_level }}.
+  </p>
+  <form method="POST" action="{{ url_for('teacher.promote_confirm') }}"
+        onsubmit="return confirm('Promote {{ promote_count }} student(s) from {{ current_level }}? This cannot be undone automatically.');">
+    <div class="form-group">
+      <label for="new_level">Promote to</label>
+      <select id="new_level" name="new_level" required>
+        <option value="" disabled selected>Select new class level</option>
+        {% for lvl in levels %}
+          {% if lvl != current_level %}
+            <option value="{{ lvl }}">{{ lvl }}</option>
+          {% endif %}
+        {% endfor %}
+      </select>
+    </div>
+    <button type="submit" class="btn btn-gold">Confirm promotion</button>
+  </form>
+</div>
+{% endif %}
+{% endblock %}

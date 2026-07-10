@@ -21,6 +21,10 @@ def register():
         teacher_code = request.form.get("teacher_code", "")
         level = request.form.get("level", "")
 
+        if email and User.query.filter_by(email=email).first():
+            flash("An account with this email already exists. Please log in instead.", "warning")
+            return redirect(url_for("auth.login", email=email))
+
         errors = []
         if not full_name:
             errors.append("Please enter your full name.")
@@ -36,8 +40,6 @@ def register():
             errors.append("That teacher sign-up code is incorrect.")
         if role == "student" and level not in current_app.config["LEVELS"]:
             errors.append("Please select your class level.")
-        if email and User.query.filter_by(email=email).first():
-            errors.append("An account with that email already exists.")
 
         if errors:
             for e in errors:
@@ -66,6 +68,8 @@ def login():
     if current_user.is_authenticated:
         return redirect(url_for("home"))
 
+    prefill_email = request.args.get("email", "")
+
     if request.method == "POST":
         email = request.form.get("email", "").strip().lower()
         password = request.form.get("password", "")
@@ -78,8 +82,9 @@ def login():
             return redirect(next_page or url_for("home"))
 
         flash("Incorrect email or password.", "danger")
+        prefill_email = email
 
-    return render_template("auth/login.html")
+    return render_template("auth/login.html", prefill_email=prefill_email)
 
 
 @auth_bp.route("/logout")

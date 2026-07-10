@@ -15,6 +15,12 @@ class User(UserMixin, db.Model):
     level = db.Column(db.String(10), nullable=True)  # student's class level, e.g. "SS2"
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
+    # --- new fields for class promotion feature ---
+    level_history = db.Column(db.Text, nullable=True)      # JSON list of past levels
+    is_repeating = db.Column(db.Boolean, default=False)    # skip on next promotion
+    is_class_teacher = db.Column(db.Boolean, default=False)
+    assigned_level = db.Column(db.String(10), nullable=True)  # which class they can promote
+
     courses = db.relationship(
         "Course", backref="teacher", lazy=True, cascade="all, delete-orphan"
     )
@@ -32,6 +38,32 @@ class User(UserMixin, db.Model):
     @property
     def is_student(self):
         return self.role == "student"
+
+    def get_level_history(self):
+        """Return list of past levels this student has been through."""
+        if not self.level_history:
+            return []
+        try:
+            return json.loads(self.level_history)
+        except (ValueError, TypeError):
+            return []
+
+    def add_to_level_history(self, old_level):
+        history = self.get_level_history()
+        if old_level and old_level not in history:
+            history.append(old_level)
+        self.level_history = json.dumps(history)
+
+    @property
+    def accessible_levels(self):
+        """All levels this student can see course material for: current + past."""
+        return set(self.get_level_history() + ([self.level] if self.level else []))
+
+    def promote_to(self, new_level):
+        """Move this student to a new level, preserving history."""
+        if self.level:
+            self.add_to_level_history(self.level)
+        self.level = new_level
 
     def __repr__(self):
         return f"<User {self.email} ({self.role})>"
@@ -56,7 +88,7 @@ class Course(db.Model):
 
     def __repr__(self):
         return f"<Course {self.code} {self.name}>"
-
+    
 
 class Document(db.Model):
     id = db.Column(db.Integer, primary_key=True)
