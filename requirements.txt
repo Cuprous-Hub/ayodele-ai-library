@@ -10,3 +10,4 @@ python-pptx==1.0.2
 requests==2.32.3
 psycopg2-binary==2.9.9 
 Flask-Mail
+sendgrid

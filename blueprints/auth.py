@@ -66,7 +66,7 @@ def register():
                 "success",
             )
         except Exception as e:
-            print(f"MAIL ERROR (verification): {e}")
+            current_app.logger.error(f"MAIL ERROR (verification): {e}")
             flash(
                 "Account created, but we couldn't send a verification email right now. "
                 "Please contact support.",
@@ -142,7 +142,7 @@ def forgot_password():
             try:
                 send_password_reset_email(user)
             except Exception as e:
-                print(f"MAIL ERROR (reset): {e}")
+                current_app.logger.error(f"MAIL ERROR (reset): {e}")
 
         flash(
             "If an account with that email exists, a password reset link has been sent.",
