@@ -3,7 +3,7 @@ from flask import Flask, render_template, redirect, url_for, send_from_directory
 from flask_login import login_required, current_user
 
 from config import Config
-from extensions import db, login_manager
+from extensions import db, login_manager, mail
 from models import User, Document, Course
 from utils.ai_summarizer import answer_question, SummarizationError
 
@@ -17,11 +17,12 @@ def create_app():
 
     db.init_app(app)
     login_manager.init_app(app)
-    from flask import send_from_directory
+    mail.init_app(app)
 
     @app.route('/sw.js')
     def service_worker():
         return send_from_directory('static', 'sw.js', mimetype='application/javascript')
+
     from blueprints.auth import auth_bp
     from blueprints.teacher import teacher_bp
     from blueprints.student import student_bp
@@ -48,7 +49,7 @@ def create_app():
     def _check_document_access(course):
         if current_user.is_teacher and course.teacher_id != current_user.id:
             abort(403)
-        if current_user.is_student and course.level != current_user.level:
+        if current_user.is_student and course.level not in current_user.accessible_levels:
             abort(403)
 
     @app.route("/documents/<int:document_id>")

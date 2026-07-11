@@ -459,3 +459,45 @@ footer.site-footer {
   .auth-side { padding: 32px; min-height: 200px; }
   .topnav { gap: 12px; }
 }
+/* ---------- Mobile nav ---------- */
+
+.nav-toggle {
+  display: none;
+  background: none;
+  border: none;
+  color: #fff;
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 4px 8px;
+}
+
+@media (max-width: 760px) {
+  .auth-shell { flex-direction: column; }
+  .auth-side { padding: 32px; min-height: 200px; }
+
+  .nav-toggle { display: block; }
+
+  .topnav {
+    display: none;
+    position: absolute;
+    top: 64px;
+    left: 0;
+    right: 0;
+    background: var(--ink-dark);
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0;
+    padding: 8px 0;
+    box-shadow: var(--shadow-lg);
+  }
+
+  .topnav.open { display: flex; }
+
+  .topnav a, .topnav .user-chip {
+    width: 100%;
+    padding: 14px 24px;
+    box-sizing: border-box;
+  }
+
+  .topnav a:hover { background: rgba(255,255,255,0.06); }
+}

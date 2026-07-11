@@ -20,7 +20,7 @@ class User(UserMixin, db.Model):
     is_repeating = db.Column(db.Boolean, default=False)    # skip on next promotion
     is_class_teacher = db.Column(db.Boolean, default=False)
     assigned_level = db.Column(db.String(10), nullable=True)  # which class they can promote
-
+    email_verified = db.Column(db.Boolean, default=False)
     courses = db.relationship(
         "Course", backref="teacher", lazy=True, cascade="all, delete-orphan"
     )
@@ -67,7 +67,7 @@ class User(UserMixin, db.Model):
 
     def __repr__(self):
         return f"<User {self.email} ({self.role})>"
-
+    
 
 class Course(db.Model):
     id = db.Column(db.Integer, primary_key=True)

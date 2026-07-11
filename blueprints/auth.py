@@ -3,6 +3,7 @@ from flask_login import login_user, logout_user, login_required, current_user
 
 from extensions import db
 from models import User
+from utils.mail import send_verification_email, send_password_reset_email, verify_token
 
 auth_bp = Blueprint("auth", __name__)
 
@@ -51,16 +52,51 @@ def register():
         user = User(
             full_name=full_name, email=email, role=role,
             level=level if role == "student" else None,
+            email_verified=False,
         )
         user.set_password(password)
         db.session.add(user)
         db.session.commit()
 
-        login_user(user)
-        flash(f"Welcome, {user.full_name}! Your account has been created.", "success")
-        return redirect(url_for("home"))
+        try:
+            send_verification_email(user)
+            flash(
+                f"Welcome, {user.full_name}! We've sent a verification link to {user.email}. "
+                "Please check your inbox before logging in.",
+                "success",
+            )
+        except Exception:
+            flash(
+                "Account created, but we couldn't send a verification email right now. "
+                "Please contact support.",
+                "warning",
+            )
+
+        return redirect(url_for("auth.login"))
 
     return render_template("auth/register.html", form={}, levels=current_app.config["LEVELS"])
+
+
+@auth_bp.route("/verify-email/<token>")
+def verify_email(token):
+    email = verify_token(token, salt="email-verify", max_age_seconds=3600)
+    if not email:
+        flash("That verification link is invalid or has expired.", "danger")
+        return redirect(url_for("auth.login"))
+
+    user = User.query.filter_by(email=email).first()
+    if not user:
+        flash("Account not found.", "danger")
+        return redirect(url_for("auth.login"))
+
+    if user.email_verified:
+        flash("Your email is already verified. Please log in.", "info")
+    else:
+        user.email_verified = True
+        db.session.commit()
+        flash("Your email has been verified! You can now log in.", "success")
+
+    return redirect(url_for("auth.login"))
 
 
 @auth_bp.route("/login", methods=["GET", "POST"])
@@ -75,7 +111,15 @@ def login():
         password = request.form.get("password", "")
 
         user = User.query.filter_by(email=email).first()
+
         if user and user.check_password(password):
+            if not user.email_verified:
+                flash(
+                    "Please verify your email before logging in. Check your inbox for the link.",
+                    "warning",
+                )
+                return redirect(url_for("auth.login"))
+
             login_user(user)
             flash(f"Welcome back, {user.full_name}!", "success")
             next_page = request.args.get("next")
@@ -85,6 +129,58 @@ def login():
         prefill_email = email
 
     return render_template("auth/login.html", prefill_email=prefill_email)
+
+
+@auth_bp.route("/forgot-password", methods=["GET", "POST"])
+def forgot_password():
+    if request.method == "POST":
+        email = request.form.get("email", "").strip().lower()
+        user = User.query.filter_by(email=email).first()
+
+        if user:
+            try:
+                send_password_reset_email(user)
+            except Exception:
+                pass
+
+        flash(
+            "If an account with that email exists, a password reset link has been sent.",
+            "info",
+        )
+        return redirect(url_for("auth.login"))
+
+    return render_template("auth/forgot_password.html")
+
+
+@auth_bp.route("/reset-password/<token>", methods=["GET", "POST"])
+def reset_password(token):
+    email = verify_token(token, salt="password-reset", max_age_seconds=3600)
+    if not email:
+        flash("That reset link is invalid or has expired.", "danger")
+        return redirect(url_for("auth.forgot_password"))
+
+    user = User.query.filter_by(email=email).first()
+    if not user:
+        flash("Account not found.", "danger")
+        return redirect(url_for("auth.login"))
+
+    if request.method == "POST":
+        password = request.form.get("password", "")
+        confirm_password = request.form.get("confirm_password", "")
+
+        if len(password) < 6:
+            flash("Password must be at least 6 characters.", "danger")
+            return render_template("auth/reset_password.html", token=token)
+        if password != confirm_password:
+            flash("Passwords do not match.", "danger")
+            return render_template("auth/reset_password.html", token=token)
+
+        user.set_password(password)
+        db.session.commit()
+        flash("Your password has been reset. Please log in.", "success")
+        return redirect(url_for("auth.login"))
+
+    return render_template("auth/reset_password.html", token=token)
 
 
 @auth_bp.route("/logout")

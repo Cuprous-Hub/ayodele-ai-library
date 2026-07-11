@@ -16,7 +16,8 @@
      <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Ayodele Schools logo" style="width:36px; height:36px; border-radius:50%;">
      Ayodele College of Excellence
     </a>
-      <nav class="topnav">
+      <button class="nav-toggle" id="navToggle" aria-label="Menu">&#9776;</button>
+      <nav class="topnav" id="topNav">
         {% if current_user.is_authenticated %}
           {% if current_user.is_teacher %}
             <a href="{{ url_for('teacher.dashboard') }}">My Courses</a>
@@ -60,6 +61,14 @@
         navigator.serviceWorker.register('/sw.js')
           .then(reg => console.log('SW registered:', reg.scope))
           .catch(err => console.log('SW registration failed:', err));
+      });
+    }
+
+    const navToggle = document.getElementById('navToggle');
+    const topNav = document.getElementById('topNav');
+    if (navToggle && topNav) {
+      navToggle.addEventListener('click', () => {
+        topNav.classList.toggle('open');
       });
     }
   </script>

@@ -23,6 +23,7 @@
         <div class="form-group">
           <label for="password">Password</label>
           <input type="password" id="password" name="password" required>
+          <div class="hint"><a href="{{ url_for('auth.forgot_password') }}">Forgot your password?</a></div>
         </div>
         <button type="submit" class="btn btn-primary btn-block">Log in</button>
       </form>
