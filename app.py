@@ -3,7 +3,7 @@ from flask import Flask, render_template, redirect, url_for, send_from_directory
 from flask_login import login_required, current_user
 
 from config import Config
-from extensions import db, login_manager, mail
+from extensions import db, login_manager
 from models import User, Document, Course
 from utils.ai_summarizer import answer_question, SummarizationError
 
@@ -17,7 +17,7 @@ def create_app():
 
     db.init_app(app)
     login_manager.init_app(app)
-    mail.init_app(app)
+    
 
     @app.route('/sw.js')
     def service_worker():
