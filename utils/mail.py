@@ -1,8 +1,8 @@
-import os
 from flask import current_app, url_for
 from itsdangerous import URLSafeTimedSerializer
-from sendgrid import SendGridAPIClient
-from sendgrid.helpers.mail import Mail
+from flask_mail import Message
+
+from extensions import mail
 
 
 def _get_serializer():
@@ -22,16 +22,14 @@ def verify_token(token, salt, max_age_seconds=3600):
 
 
 def _send_email(to_email, subject, body_text):
-    sg = SendGridAPIClient(os.environ.get("SENDGRID_API_KEY"))
-    message = Mail(
-        from_email=current_app.config["MAIL_DEFAULT_SENDER"],
-        to_emails=to_email,
+    message = Message(
         subject=subject,
-        plain_text_content=body_text,
+        recipients=[to_email],
+        body=body_text,
+        sender=current_app.config["MAIL_DEFAULT_SENDER"],
     )
-    response = sg.send(message)
-    current_app.logger.info(f"SendGrid response status: {response.status_code}")
-    return response
+    mail.send(message)
+    current_app.logger.info(f"Sent email to {to_email} via Gmail SMTP")
 
 
 def send_verification_email(user):
