@@ -32,10 +32,7 @@ class Config:
 
     LEVELS = ["JSS1", "JSS2", "JSS3", "SS1", "SS2", "SS3"]
 
-    # --- Email (Gmail SMTP) for verification + password reset ---
-    MAIL_SERVER = "smtp.gmail.com"
-    MAIL_PORT = 587
-    MAIL_USE_TLS = True
-    MAIL_USERNAME = os.environ.get("GMAIL_ADDRESS")
-    MAIL_PASSWORD = os.environ.get("GMAIL_APP_PASSWORD")
-    MAIL_DEFAULT_SENDER = os.environ.get("GMAIL_ADDRESS")
+    # --- Email (Brevo HTTP API) for verification + password reset ---
+    BREVO_API_KEY = os.environ.get("BREVO_API_KEY")
+    MAIL_DEFAULT_SENDER = os.environ.get("MAIL_DEFAULT_SENDER")
+    MAIL_DEFAULT_SENDER_NAME = os.environ.get("MAIL_DEFAULT_SENDER_NAME", "Ayodele AI Library")
