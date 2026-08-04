@@ -1,8 +1,6 @@
+import requests
 from flask import current_app, url_for
 from itsdangerous import URLSafeTimedSerializer
-from flask_mail import Message
-
-from extensions import mail
 
 
 def _get_serializer():
@@ -22,14 +20,26 @@ def verify_token(token, salt, max_age_seconds=3600):
 
 
 def _send_email(to_email, subject, body_text):
-    message = Message(
-        subject=subject,
-        recipients=[to_email],
-        body=body_text,
-        sender=current_app.config["MAIL_DEFAULT_SENDER"],
+    response = requests.post(
+        "https://api.brevo.com/v3/smtp/email",
+        headers={
+            "api-key": current_app.config["BREVO_API_KEY"],
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+        },
+        json={
+            "sender": {
+                "name": current_app.config["MAIL_DEFAULT_SENDER_NAME"],
+                "email": current_app.config["MAIL_DEFAULT_SENDER"],
+            },
+            "to": [{"email": to_email}],
+            "subject": subject,
+            "textContent": body_text,
+        },
+        timeout=10,
     )
-    mail.send(message)
-    current_app.logger.info(f"Sent email to {to_email} via Gmail SMTP")
+    response.raise_for_status()
+    current_app.logger.info(f"Sent email to {to_email} via Brevo (status {response.status_code})")
 
 
 def send_verification_email(user):
