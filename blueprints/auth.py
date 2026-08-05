@@ -98,6 +98,28 @@ def verify_email(token):
         flash("Your email has been verified! You can now log in.", "success")
 
     return redirect(url_for("auth.login"))
+@auth_bp.route("/resend-verification", methods=["GET", "POST"])
+def resend_verification():
+    if request.method == "POST":
+        email = request.form.get("email", "").strip().lower()
+        user = User.query.filter_by(email=email).first()
+
+        if user and not user.email_verified:
+            try:
+                send_verification_email(user)
+            except Exception as e:
+                current_app.logger.error(f"MAIL ERROR (resend verification): {e}")
+
+        # Same message regardless of whether the account exists or is already
+        # verified, so we don't leak which emails are registered.
+        flash(
+            "If that account needs verifying, a new verification link has been sent.",
+            "info",
+        )
+        return redirect(url_for("auth.login"))
+
+    prefill_email = request.args.get("email", "")
+    return render_template("auth/resend_verification.html", prefill_email=prefill_email)
 
 
 @auth_bp.route("/login", methods=["GET", "POST"])
