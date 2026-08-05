@@ -98,6 +98,8 @@ def verify_email(token):
         flash("Your email has been verified! You can now log in.", "success")
 
     return redirect(url_for("auth.login"))
+
+
 @auth_bp.route("/resend-verification", methods=["GET", "POST"])
 def resend_verification():
     if request.method == "POST":
@@ -137,9 +139,11 @@ def login():
 
         if user and user.check_password(password):
             if not user.email_verified:
+                resend_url = url_for("auth.resend_verification", email=email)
                 flash(
-                    "Please verify your email before logging in. Check your inbox for the link.",
-                    "warning",
+                    "Please verify your email before logging in. Check your inbox "
+                    f'for the link, or <a href="{resend_url}">resend the verification email</a>.',
+                    "warning-html",
                 )
                 return redirect(url_for("auth.login"))
 
