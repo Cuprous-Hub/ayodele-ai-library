@@ -117,6 +117,6 @@ if __name__ == "__main__":
 
 
 #Dunwo and lead city, sitting on a tree...
-#But Dunwo wants to go to canada...idk what #I'm saying bruhhh
+#But Dunwo wants to go to canada...idk wha #I'm saying bruhhh
 #Give your life to christ, Jesus is coming
 #!!!!!
