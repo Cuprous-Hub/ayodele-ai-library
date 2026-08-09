@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}My Results{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>My Results</h1>
+    <p class="lede">Your past AI quiz attempts.</p>
+  </div>
+</div>
+
+{% if quizzes %}
+  <div class="quiz-history-list">
+    {% for quiz in quizzes %}
+      <a href="{{ url_for('quiz.result', quiz_id=quiz.id) }}" class="card"
+         style="color:inherit; display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+        <div>
+          <div class="doc-title">{{ quiz.title }}</div>
+          <div class="hint">{{ quiz.submitted_at.strftime('%d %b %Y, %H:%M') }}</div>
+        </div>
+        <div class="mono">{{ quiz.score }}/{{ quiz.total }}</div>
+      </a>
+    {% endfor %}
+  </div>
+{% else %}
+  <div class="empty-state card">
+    <h3>No quizzes yet</h3>
+    <p>Once you take an AI quiz, your results will show up here.</p>
+  </div>
+{% endif %}
+{% endblock %}

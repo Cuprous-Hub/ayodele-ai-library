@@ -128,3 +128,64 @@ class Document(db.Model):
 
     def __repr__(self):
         return f"<Document {self.title} ({self.status})>"
+
+
+class Quiz(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    student_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+
+    title = db.Column(db.String(200), nullable=False)
+    course_ids = db.Column(db.Text, nullable=False)  # JSON list of course ids used
+    duration_minutes = db.Column(db.Integer, nullable=False)
+    num_questions = db.Column(db.Integer, nullable=False)
+
+    # JSON list of {type, subject, question, options, correct_index}
+    questions_json = db.Column(db.Text, nullable=False)
+    # JSON list of ints (or null for unanswered), same length/order as questions
+    answers_json = db.Column(db.Text, nullable=True)
+
+    score = db.Column(db.Integer, nullable=True)
+    total = db.Column(db.Integer, nullable=True)
+    status = db.Column(db.String(20), default="in_progress")  # in_progress/submitted
+
+    started_at = db.Column(db.DateTime, default=datetime.utcnow)
+    submitted_at = db.Column(db.DateTime, nullable=True)
+
+    student = db.relationship("User", backref="quizzes")
+
+    def get_course_ids(self):
+        try:
+            return json.loads(self.course_ids)
+        except (ValueError, TypeError):
+            return []
+
+    def set_course_ids(self, ids):
+        self.course_ids = json.dumps(ids)
+
+    def get_questions(self):
+        try:
+            return json.loads(self.questions_json)
+        except (ValueError, TypeError):
+            return []
+
+    def set_questions(self, questions):
+        self.questions_json = json.dumps(questions)
+
+    def get_answers(self):
+        if not self.answers_json:
+            return []
+        try:
+            return json.loads(self.answers_json)
+        except (ValueError, TypeError):
+            return []
+
+    def set_answers(self, answers):
+        self.answers_json = json.dumps(answers)
+
+    @property
+    def expires_at(self):
+        from datetime import timedelta
+        return self.started_at + timedelta(minutes=self.duration_minutes)
+
+    def __repr__(self):
+        return f"<Quiz {self.id} for user {self.student_id} ({self.status})>"

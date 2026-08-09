@@ -146,6 +146,118 @@ def answer_question(title, full_text, question):
     return answer.strip()
 
 
+QUIZ_SYSTEM_PROMPT = (
+    "You are a quiz-writer for a secondary school AI study app. You will be "
+    "given text extracted from one or more subjects' course notes, each "
+    "labeled with its subject name, plus a target number of questions. "
+    "Write quiz questions using ONLY facts found in the provided text - "
+    "never invent facts or use outside knowledge. Mix multiple-choice and "
+    "true/false questions. Spread questions across the given subjects as "
+    "evenly as possible. Respond with ONLY valid JSON, no markdown fences, "
+    "no commentary, matching exactly this shape:\n"
+    '{"questions": [\n'
+    '  {"type": "mcq", "subject": "Subject name", "question": "...", '
+    '"options": ["A", "B", "C", "D"], "correct_index": 0},\n'
+    '  {"type": "true_false", "subject": "Subject name", "question": "...", '
+    '"options": ["True", "False"], "correct_index": 1}\n'
+    "]}\n"
+    "Rules: mcq questions must have exactly 4 options; true_false questions "
+    'must have options exactly ["True", "False"]. correct_index is the '
+    "0-based index of the correct option. Produce exactly the requested "
+    "number of questions if the material supports it; if the material is "
+    "too thin, produce as many good questions as you reasonably can."
+)
+
+
+class QuizGenerationError(SummarizationError):
+    pass
+
+
+def generate_quiz(subject_docs, num_questions):
+    """subject_docs: list of {"subject": str, "text": str}. Returns a list of
+    validated question dicts."""
+    api_key = _require_api_key()
+
+    subject_docs = [d for d in subject_docs if d.get("text") and d["text"].strip()]
+    if not subject_docs:
+        raise QuizGenerationError(
+            "None of the selected subjects have readable notes to build a quiz from yet."
+        )
+
+    per_subject_cap = max(2000, MAX_CHARS // max(1, len(subject_docs)))
+    blocks = []
+    for doc in subject_docs:
+        trimmed = doc["text"].strip()[:per_subject_cap]
+        blocks.append(f'Subject: "{doc["subject"]}"\n{trimmed}')
+    combined_text = "\n\n---\n\n".join(blocks)
+
+    raw_content = _call_groq(
+        api_key,
+        messages=[
+            {"role": "system", "content": QUIZ_SYSTEM_PROMPT},
+            {
+                "role": "user",
+                "content": (
+                    f"Number of questions requested: {num_questions}\n\n"
+                    f"{combined_text}"
+                ),
+            },
+        ],
+        temperature=0.4,
+        max_tokens=3000,
+    )
+
+    return _parse_quiz_json(raw_content, num_questions)
+
+
+def _parse_quiz_json(raw_content, num_questions):
+    cleaned = raw_content.strip()
+    cleaned = re.sub(r"^```(?:json)?\s*", "", cleaned)
+    cleaned = re.sub(r"\s*```$", "", cleaned)
+
+    try:
+        parsed = json.loads(cleaned)
+    except ValueError as exc:
+        raise QuizGenerationError("The AI response could not be parsed as JSON.") from exc
+
+    raw_questions = parsed.get("questions", [])
+    questions = []
+    for item in raw_questions:
+        if not isinstance(item, dict):
+            continue
+        qtype = str(item.get("type", "")).strip()
+        subject = str(item.get("subject", "")).strip()
+        question = str(item.get("question", "")).strip()
+        options = item.get("options", [])
+        correct_index = item.get("correct_index")
+
+        if qtype not in ("mcq", "true_false"):
+            continue
+        if not question or not subject:
+            continue
+        if not isinstance(options, list) or not all(isinstance(o, str) for o in options):
+            continue
+        if qtype == "mcq" and len(options) != 4:
+            continue
+        if qtype == "true_false" and [o.strip().lower() for o in options] != ["true", "false"]:
+            continue
+        if not isinstance(correct_index, int) or not (0 <= correct_index < len(options)):
+            continue
+
+        questions.append({
+            "type": qtype,
+            "subject": subject,
+            "question": question,
+            "options": [o.strip() for o in options],
+            "correct_index": correct_index,
+        })
+
+    if not questions:
+        raise QuizGenerationError("The AI wasn't able to generate valid questions from these notes. Try different subjects.")
+
+    return questions[:num_questions]
+
+
 def _parse_summary_json(raw_content):
     cleaned = raw_content.strip()
     # Strip ```json ... ``` fences if the model added them anyway.
