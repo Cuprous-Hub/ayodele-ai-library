@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}My Courses{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>My Courses</h1>
+    <p class="lede">Manage your course outlines and uploaded material.</p>
+  </div>
+  <a href="{{ url_for('teacher.course_new') }}" class="btn btn-primary">+ New Course</a>
+</div>
+
+{% if courses %}
+  <div class="course-grid">
+    {% for course in courses %}
+      <a href="{{ url_for('teacher.course_detail', course_id=course.id) }}" class="course-card" style="color:inherit;">
+        <span class="level-tag">{{ course.level }}</span>
+        <h3>{{ course.name }}</h3>
+        <div class="code">{{ course.code }}</div>
+        <p class="desc">{{ course.description or "No description yet." }}</p>
+        <div class="meta">{{ course.documents|length }} document{{ '' if course.documents|length == 1 else 's' }}</div>
+      </a>
+    {% endfor %}
+  </div>
+{% else %}
+  <div class="empty-state card">
+    <h3>No courses yet</h3>
+    <p>Create your first course to start uploading material for your students.</p>
+    <a href="{{ url_for('teacher.course_new') }}" class="btn btn-primary">+ New Course</a>
+  </div>
+{% endif %}
+{% endblock %}

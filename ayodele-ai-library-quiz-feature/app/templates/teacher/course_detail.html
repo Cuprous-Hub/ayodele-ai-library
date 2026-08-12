@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% from "_document_card.html" import document_card %}
+{% block title %}{{ course.name }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <span class="level-tag">{{ course.level }}</span>
+    <h1>{{ course.name }}</h1>
+    <p class="lede mono">{{ course.code }}</p>
+  </div>
+  <form method="POST" action="{{ url_for('teacher.delete_course', course_id=course.id) }}"
+        onsubmit="return confirm('Delete this entire course and all its documents? This cannot be undone.');">
+    <button type="submit" class="btn btn-danger-outline btn-sm">Delete course</button>
+  </form>
+</div>
+
+{% if course.description %}
+  <p style="color:var(--muted); max-width:640px; margin-top:-16px; margin-bottom:28px;">{{ course.description }}</p>
+{% endif %}
+
+<div class="card upload-box" style="margin-bottom:32px;">
+  <h3 style="margin-bottom:14px;">Upload course material</h3>
+  <form method="POST" action="{{ url_for('teacher.upload_document', course_id=course.id) }}" enctype="multipart/form-data">
+    <div class="form-group">
+      <label for="title">Title (optional)</label>
+      <input type="text" id="title" name="title" placeholder="e.g. Term 2 Outline &mdash; Waves and Optics">
+    </div>
+    <div class="form-group">
+      <label for="document">File</label>
+      <input type="file" id="document" name="document" accept=".pdf,.docx,.pptx" required>
+      <div class="hint">PDF, Word, or PowerPoint. The AI will read it and generate a summary automatically.</div>
+    </div>
+    <button type="submit" class="btn btn-gold">Upload &amp; summarize</button>
+  </form>
+</div>
+
+<h3 style="margin-bottom:16px;">Documents</h3>
+{% if course.documents %}
+  {% for document in course.documents %}
+    {{ document_card(document, course, can_manage=True) }}
+  {% endfor %}
+{% else %}
+  <div class="empty-state card">
+    <h3>No documents yet</h3>
+    <p>Upload your first file above to generate an AI summary for your students.</p>
+  </div>
+{% endif %}
+{% endblock %}

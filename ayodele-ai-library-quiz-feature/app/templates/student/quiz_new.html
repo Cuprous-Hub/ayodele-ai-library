@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}New Quiz{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>Quiz</h1>
+    <p class="lede">Pick the subjects you've been reading, how many questions you want, and a timer. The questions are generated from your teachers' notes.</p>
+  </div>
+</div>
+
+{% if courses %}
+<div class="card" style="max-width:640px;">
+  <form method="POST">
+    <div class="form-group">
+      <label>Subjects</label>
+      <div class="quiz-subject-list">
+        {% for course in courses %}
+          <label class="quiz-subject-item">
+            <input type="checkbox" name="course_ids" value="{{ course.id }}">
+            <span>{{ course.name }} <span class="mono" style="color:var(--muted); font-weight:500;">· {{ course.level }}</span></span>
+          </label>
+        {% endfor %}
+      </div>
+      <div class="hint">Pick one subject, or several if you want a mixed quiz.</div>
+    </div>
+
+    <div class="form-group">
+      <label for="num_questions">Number of questions</label>
+      <select id="num_questions" name="num_questions">
+        {% for n in num_choices %}
+          <option value="{{ n }}" {% if n == 10 %}selected{% endif %}>{{ n }} questions</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label for="duration_minutes">Timer</label>
+      <select id="duration_minutes" name="duration_minutes">
+        {% for d in duration_choices %}
+          <option value="{{ d }}" {% if d == 10 %}selected{% endif %}>{{ d }} minutes</option>
+        {% endfor %}
+      </select>
+      <div class="hint">The quiz auto-submits when time runs out.</div>
+    </div>
+
+    <button type="submit" class="btn btn-primary" id="startBtn">Generate quiz</button>
+  </form>
+</div>
+{% else %}
+  <div class="empty-state card">
+    <h3>No material to quiz on yet</h3>
+    <p>Once your teachers upload notes for your subjects, you'll be able to generate a quiz here.</p>
+  </div>
+{% endif %}
+
+<script>
+  const form = document.querySelector('form');
+  if (form) {
+    form.addEventListener('submit', function () {
+      const checked = form.querySelectorAll('input[name="course_ids"]:checked');
+      if (checked.length === 0) {
+        return; // let normal validation/flash handle it server-side
+      }
+      const btn = document.getElementById('startBtn');
+      btn.disabled = true;
+      btn.textContent = 'Building your quiz…';
+    });
+  }
+</script>
+{% endblock %}
