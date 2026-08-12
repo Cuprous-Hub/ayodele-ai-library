@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}Class Teacher Settings{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>Class Teacher Settings</h1>
+    <p class="lede mono">Optional &mdash; only fill this in if you're the fixed class teacher for a level.</p>
+  </div>
+</div>
+
+<div class="card upload-box" style="max-width:520px;">
+  <p class="hint" style="margin-bottom:20px;">
+    If you're the class teacher assigned to a specific level (e.g. SS1), you can mark it here.
+    This lets you promote that class to the next level at the end of the session.
+    Most teachers won't need to fill this in &mdash; only skip this if you're not a fixed class teacher.
+  </p>
+
+  <form method="POST">
+    <div class="form-group">
+      <label>
+        <input type="radio" name="is_class_teacher" value="no"
+          {% if not current_user.is_class_teacher %}checked{% endif %}>
+        I'm not a fixed class teacher
+      </label>
+    </div>
+    <div class="form-group">
+      <label>
+        <input type="radio" name="is_class_teacher" value="yes"
+          {% if current_user.is_class_teacher %}checked{% endif %}>
+        I'm the class teacher for a specific level
+      </label>
+    </div>
+
+    <div class="form-group">
+      <label for="assigned_level">Which class level?</label>
+      <select id="assigned_level" name="assigned_level">
+        <option value="" disabled {% if not current_user.assigned_level %}selected{% endif %}>
+          Select a level
+        </option>
+        {% for lvl in levels %}
+          <option value="{{ lvl }}" {% if current_user.assigned_level == lvl %}selected{% endif %}>
+            {{ lvl }}
+            {% if counts[lvl] > 0 %} &mdash; {{ counts[lvl] }} other teacher(s) already assigned{% endif %}
+          </option>
+        {% endfor %}
+      </select>
+      <div class="hint">
+        If you see other teachers already assigned to your level, check with your school
+        before selecting the same one, so promotion isn't triggered twice.
+      </div>
+    </div>
+
+    <button type="submit" class="btn btn-gold">Save</button>
+  </form>
+</div>
+{% endblock %}

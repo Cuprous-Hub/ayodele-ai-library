@@ -1,0 +1,68 @@
+{% macro document_card(document, course, can_manage=False) %}
+<div class="doc-row">
+  <div class="doc-row-head">
+    <div>
+      <div class="doc-title">{{ document.title }}</div>
+      <div class="doc-meta">{{ document.file_type|upper }} · uploaded {{ document.uploaded_at.strftime('%d %b %Y') }}</div>
+    </div>
+    <div style="display:flex; align-items:center; gap:8px;">
+      {% if document.status == 'done' %}
+        <span class="status-pill status-done">SUMMARIZED</span>
+      {% elif document.status == 'pending' %}
+        <span class="status-pill status-pending">PROCESSING</span>
+      {% else %}
+        <span class="status-pill status-failed">FAILED</span>
+      {% endif %}
+      <a href="{{ url_for('view_document', document_id=document.id) }}" class="btn btn-outline btn-sm">Open</a>
+      <a href="{{ url_for('download_document', document_id=document.id) }}" class="btn btn-outline btn-sm">Download</a>
+      {% if can_manage %}
+        <form method="POST" action="{{ url_for('teacher.resummarize', document_id=document.id) }}" style="display:inline;">
+          <button type="submit" class="btn btn-outline btn-sm">Re-summarize</button>
+        </form>
+        <form method="POST" action="{{ url_for('teacher.delete_document', document_id=document.id) }}"
+              style="display:inline;" onsubmit="return confirm('Delete this document?');">
+          <button type="submit" class="btn btn-danger-outline btn-sm">Delete</button>
+        </form>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if document.status == 'done' %}
+    {% set summary = document.get_summary() %}
+    {% if summary %}
+      <div class="summary-block">
+        <span class="ai-chip">✦ AI Summary</span>
+        <p class="overview">{{ summary.overview }}</p>
+
+        {% if summary.key_topics %}
+          <strong style="font-size:0.85rem;">Key topics</strong>
+          <ul class="topic-list">
+            {% for topic in summary.key_topics %}
+              <li>{{ topic }}</li>
+            {% endfor %}
+          </ul>
+        {% endif %}
+
+        {% if summary.key_terms %}
+          <strong style="font-size:0.85rem;">Key terms</strong>
+          <ul class="term-list">
+            {% for item in summary.key_terms %}
+              <li><strong>{{ item.term }}</strong> &mdash; {{ item.definition }}</li>
+            {% endfor %}
+          </ul>
+        {% endif %}
+      </div>
+    {% endif %}
+  {% elif document.status == 'failed' %}
+    <div class="summary-block">
+      <p style="color:var(--danger); font-size:0.88rem;">
+        Summary failed: {{ document.error_message }}
+      </p>
+    </div>
+  {% else %}
+    <div class="summary-block">
+      <p style="color:var(--muted); font-size:0.88rem;">Summary is still processing&hellip; refresh in a moment.</p>
+    </div>
+  {% endif %}
+</div>
+{% endmacro %}

@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}File too large{% endblock %}
+{% block content %}
+<div class="empty-state card" style="max-width:480px; margin:40px auto;">
+  <h3>That file is too large</h3>
+  <p>Please upload a smaller file and try again.</p>
+  <a href="{{ url_for('home') }}" class="btn btn-primary">Go home</a>
+</div>
+{% endblock %}

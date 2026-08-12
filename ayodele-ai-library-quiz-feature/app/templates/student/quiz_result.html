@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Quiz Result{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>{{ quiz.title }}</h1>
+    <p class="lede">Submitted {{ quiz.submitted_at.strftime('%d %b %Y, %H:%M') }}</p>
+  </div>
+</div>
+
+<div class="card quiz-score-card">
+  <div class="quiz-score-num">{{ quiz.score }}/{{ quiz.total }}</div>
+  <div class="hint">{{ (quiz.score / quiz.total * 100) | round | int }}% correct</div>
+</div>
+
+{% for q in review %}
+  <div class="card quiz-question-card {{ 'quiz-correct' if q.is_correct else 'quiz-incorrect' }}">
+    <div class="quiz-question-head">
+      <span class="filter-chip">{{ q.subject }}</span>
+      <span class="status-pill {{ 'status-done' if q.is_correct else 'status-failed' }}">
+        {{ 'Correct' if q.is_correct else 'Incorrect' }}
+      </span>
+    </div>
+    <p class="quiz-question-text">{{ loop.index }}. {{ q.question }}</p>
+    <div class="quiz-options">
+      {% for option in q.options %}
+        <div class="quiz-option-item quiz-option-review
+          {{ 'quiz-option-correct' if loop.index0 == q.correct_index else '' }}
+          {{ 'quiz-option-chosen-wrong' if loop.index0 == q.chosen_index and not q.is_correct else '' }}">
+          {{ option }}
+          {% if loop.index0 == q.correct_index %}<span class="mono">✓</span>{% endif %}
+        </div>
+      {% endfor %}
+    </div>
+    {% if q.chosen_index is none %}
+      <p class="hint">You didn't answer this one.</p>
+    {% endif %}
+  </div>
+{% endfor %}
+
+<a href="{{ url_for('quiz.new') }}" class="btn btn-outline">Take another quiz</a>
+{% endblock %}

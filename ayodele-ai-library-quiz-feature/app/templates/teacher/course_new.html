@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}New Course{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>New Course</h1>
+</div>
+
+<div class="card" style="max-width:560px;">
+  <form method="POST">
+    <div class="form-group">
+      <label for="name">Course name</label>
+      <input type="text" id="name" name="name" placeholder="e.g. Physics" required
+             value="{{ form.get('name', '') }}">
+    </div>
+    <div class="form-group">
+      <label for="code">Course code</label>
+      <input type="text" id="code" name="code" placeholder="e.g. PHY-SS2" required
+             value="{{ form.get('code', '') }}">
+      <div class="hint">A short unique code students will recognize.</div>
+    </div>
+    <div class="form-group">
+      <label for="level">Class level</label>
+      <select id="level" name="level" required>
+        <option value="" disabled {% if not form.get('level') %}selected{% endif %}>Select a level</option>
+        {% for level in levels %}
+          <option value="{{ level }}" {% if form.get('level') == level %}selected{% endif %}>{{ level }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="form-group">
+      <label for="description">Description (optional)</label>
+      <textarea id="description" name="description" placeholder="What this course covers&hellip;">{{ form.get('description', '') }}</textarea>
+    </div>
+    <button type="submit" class="btn btn-primary">Create course</button>
+  </form>
+</div>
+{% endblock %}

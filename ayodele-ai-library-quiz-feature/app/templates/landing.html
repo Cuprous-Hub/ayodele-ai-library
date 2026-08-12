@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}AYODELE COLLEGE OF EXCELLENCE'S AI LIBRARY{% endblock %}
+{% block content %}
+<div class="card" style="padding:48px; text-align:center; max-width:680px; margin:40px auto;">
+  <span class="ai-chip" style="margin-bottom:16px;">✦ AI-powered</span>
+  <h1 style="font-size:2.1rem;">Every course outline, summarized and in one place</h1>
+  <p class="lede" style="font-size:1.02rem; max-width:480px; margin:14px auto 28px;">
+    Teachers upload their notes, slides, and outlines. Our AI reads them and gives
+    students a clear summary, key topics, and key terms &mdash; readable anytime, from any device.
+  </p>
+  <div style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap;">
+    <a href="{{ url_for('auth.register') }}" class="btn btn-primary">Create an account</a>
+    <a href="{{ url_for('auth.login') }}" class="btn btn-outline">Log in</a>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% from "_document_card.html" import document_card %}
+{% block title %}{{ course.name }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <span class="level-tag">{{ course.level }}</span>
+    <h1>{{ course.name }}</h1>
+    <p class="lede mono">{{ course.code }} · taught by {{ course.teacher.full_name }}</p>
+  </div>
+</div>
+
+{% if course.description %}
+  <p style="color:var(--muted); max-width:640px; margin-top:-16px; margin-bottom:28px;">{{ course.description }}</p>
+{% endif %}
+
+{% if course.documents %}
+  {% for document in course.documents %}
+    {{ document_card(document, course, can_manage=False) }}
+  {% endfor %}
+{% else %}
+  <div class="empty-state card">
+    <h3>Nothing uploaded yet</h3>
+    <p>Your teacher hasn't added any material for this course yet. Check back soon.</p>
+  </div>
+{% endif %}
+{% endblock %}
