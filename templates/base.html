@@ -28,7 +28,7 @@
             {% endif %}
           {% else %}
             <a href="{{ url_for('student.dashboard') }}">My Courses</a>
-            <a href="{{ url_for('quiz.new') }}">AI Quiz</a>
+            <a href="{{ url_for('quiz.new') }}">Quiz</a>
             <a href="{{ url_for('quiz.history') }}">My Results</a>
           {% endif %}
           <span class="user-chip">{{ current_user.full_name }} · {{ current_user.role }}</span>

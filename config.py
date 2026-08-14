@@ -1,4 +1,3 @@
-#broo the code is public and i'm talking like this?
 import os
 from dotenv import load_dotenv
 

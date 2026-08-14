@@ -1,4 +1,3 @@
-#Oya, last 0ne fr. Mehn
 import os
 import uuid
 
@@ -317,4 +316,3 @@ def promote_confirm():
         "success",
     )
     return redirect(url_for("teacher.dashboard"))
-#welllll....
