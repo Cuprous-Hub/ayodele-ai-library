@@ -1,11 +1,14 @@
+import io
 import os
-from flask import Flask, render_template, redirect, url_for, send_from_directory, abort, jsonify, request
+from flask import Flask, render_template, redirect, url_for, send_from_directory, send_file, abort, jsonify, request
 from flask_login import login_required, current_user
 
 from config import Config
 from extensions import db, login_manager
 from models import User, Document, Course
 from utils.ai_summarizer import answer_question, SummarizationError
+from utils import storage
+from utils.storage import StorageError
 
 
 def create_app():
@@ -13,7 +16,6 @@ def create_app():
     app.config.from_object(Config)
 
     os.makedirs(os.path.join(app.root_path, "instance"), exist_ok=True)
-    os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
 
     db.init_app(app)
     login_manager.init_app(app)
@@ -68,9 +70,14 @@ def create_app():
         document = Document.query.get_or_404(document_id)
         course = Course.query.get_or_404(document.course_id)
         _check_document_access(course)
-        folder = os.path.join(app.config["UPLOAD_FOLDER"], str(course.id))
-        return send_from_directory(
-            folder, document.stored_filename, as_attachment=True,
+        storage_path = f"{course.id}/{document.stored_filename}"
+        try:
+            file_bytes = storage.download_file(storage_path)
+        except StorageError:
+            abort(404)
+        return send_file(
+            io.BytesIO(file_bytes),
+            as_attachment=True,
             download_name=f"{document.title}.{document.file_type}",
         )
 
