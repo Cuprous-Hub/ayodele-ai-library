@@ -1,3 +1,4 @@
+import io
 import os
 import uuid
 
@@ -13,6 +14,8 @@ from models import Course, Document, User
 from utils.decorators import teacher_required, class_teacher_required
 from utils.file_parser import extract_text, ExtractionError
 from utils.ai_summarizer import summarize_document, SummarizationError
+from utils import storage
+from utils.storage import StorageError
 
 teacher_bp = Blueprint("teacher", __name__, url_prefix="/teacher")
 
@@ -109,12 +112,15 @@ def upload_document(course_id):
     if not title:
         title = os.path.splitext(secure_filename(uploaded_file.filename))[0]
 
-    course_folder = os.path.join(current_app.config["UPLOAD_FOLDER"], str(course.id))
-    os.makedirs(course_folder, exist_ok=True)
-
     stored_filename = f"{uuid.uuid4().hex}.{ext}"
-    filepath = os.path.join(course_folder, stored_filename)
-    uploaded_file.save(filepath)
+    storage_path = f"{course.id}/{stored_filename}"
+    file_bytes = uploaded_file.read()
+
+    try:
+        storage.upload_file(storage_path, file_bytes, content_type=uploaded_file.mimetype)
+    except StorageError as exc:
+        flash(f"Upload failed: {exc}", "danger")
+        return redirect(url_for("teacher.course_detail", course_id=course.id))
 
     document = Document(
         course_id=course.id,
@@ -127,15 +133,15 @@ def upload_document(course_id):
     db.session.add(document)
     db.session.commit()
 
-    _process_document(document, filepath)
+    _process_document(document, file_bytes)
 
     return redirect(url_for("teacher.course_detail", course_id=course.id))
 
 
-def _process_document(document, filepath):
+def _process_document(document, file_bytes):
     """Extract text and request an AI summary, recording success or failure."""
     try:
-        text = extract_text(filepath, document.file_type)
+        text = extract_text(io.BytesIO(file_bytes), document.file_type)
         document.full_text = text
         db.session.commit()
 
@@ -160,16 +166,16 @@ def resummarize(document_id):
     document = Document.query.get_or_404(document_id)
     course = _get_owned_course(document.course_id)
 
-    filepath = os.path.join(
-        current_app.config["UPLOAD_FOLDER"], str(course.id), document.stored_filename
-    )
-    if not os.path.exists(filepath):
-        flash("The original file is missing from the server.", "danger")
+    storage_path = f"{course.id}/{document.stored_filename}"
+    try:
+        file_bytes = storage.download_file(storage_path)
+    except StorageError:
+        flash("The original file is missing from storage.", "danger")
         return redirect(url_for("teacher.course_detail", course_id=course.id))
 
     document.status = "pending"
     db.session.commit()
-    _process_document(document, filepath)
+    _process_document(document, file_bytes)
 
     if document.status == "done":
         flash("Summary regenerated.", "success")
@@ -185,11 +191,8 @@ def delete_document(document_id):
     document = Document.query.get_or_404(document_id)
     course = _get_owned_course(document.course_id)
 
-    filepath = os.path.join(
-        current_app.config["UPLOAD_FOLDER"], str(course.id), document.stored_filename
-    )
-    if os.path.exists(filepath):
-        os.remove(filepath)
+    storage_path = f"{course.id}/{document.stored_filename}"
+    storage.delete_file(storage_path)
 
     db.session.delete(document)
     db.session.commit()
@@ -202,14 +205,11 @@ def delete_document(document_id):
 @teacher_required
 def delete_course(course_id):
     course = _get_owned_course(course_id)
-    course_folder = os.path.join(current_app.config["UPLOAD_FOLDER"], str(course.id))
 
     db.session.delete(course)
     db.session.commit()
 
-    if os.path.isdir(course_folder):
-        import shutil
-        shutil.rmtree(course_folder, ignore_errors=True)
+    storage.delete_folder(str(course.id))
 
     flash(f"Course '{course.name}' deleted.", "info")
     return redirect(url_for("teacher.dashboard"))
