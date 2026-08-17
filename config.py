@@ -26,7 +26,7 @@ class Config:
     MAX_CONTENT_LENGTH = int(os.environ.get("MAX_UPLOAD_MB", 20)) * 1024 * 1024
 
     GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
-    GROQ_MODEL = os.environ.get("GROQ_MODEL", "openai/gpt-oss-120b")
+    GROQ_MODEL = os.environ.get("GROQ_MODEL", "llama-3.3-70b-versatile")
 
     TEACHER_SIGNUP_CODE = os.environ.get("TEACHER_SIGNUP_CODE", "change-this-code")
 

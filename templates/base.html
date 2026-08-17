@@ -22,6 +22,9 @@
           {% if current_user.is_teacher %}
             <a href="{{ url_for('teacher.dashboard') }}">My Courses</a>
             <a href="{{ url_for('teacher.course_new') }}">+ New Course</a>
+            <a href="{{ url_for('quiz.new') }}">Quiz</a>
+            <a href="{{ url_for('quiz.history') }}">My Results</a>
+            <a href="{{ url_for('teacher.student_results') }}">Student Results</a>
             <a href="{{ url_for('teacher.class_settings') }}">Class Teacher Settings</a>
             {% if current_user.is_class_teacher %}
               <a href="{{ url_for('teacher.promote_view') }}">Promote Class</a>

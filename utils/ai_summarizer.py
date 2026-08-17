@@ -60,7 +60,7 @@ def _require_api_key():
 
 def _call_groq(api_key, messages, temperature, max_tokens):
     payload = {
-        "model": current_app.config.get("GROQ_MODEL", "openai/gpt-oss-120b"),
+        "model": current_app.config.get("GROQ_MODEL", "llama-3.3-70b-versatile"),
         "messages": messages,
         "temperature": temperature,
         "max_tokens": max_tokens,

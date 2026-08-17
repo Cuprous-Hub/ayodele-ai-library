@@ -9,7 +9,7 @@ from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 
 from extensions import db
-from models import Course, Document, User
+from models import Course, Document, User, Quiz
 from utils.decorators import teacher_required, class_teacher_required
 from utils.file_parser import extract_text, ExtractionError
 from utils.ai_summarizer import summarize_document, SummarizationError
@@ -316,3 +316,77 @@ def promote_confirm():
         "success",
     )
     return redirect(url_for("teacher.dashboard"))
+
+
+def _teacher_courses():
+    return (
+        Course.query.filter_by(teacher_id=current_user.id)
+        .order_by(Course.level, Course.name)
+        .all()
+    )
+
+
+@teacher_bp.route("/results")
+@login_required
+@teacher_required
+def student_results():
+    """Quiz attempts by students on subjects this teacher teaches.
+
+    Only quizzes taken by users with role 'student' are shown here, so a
+    teacher never sees another teacher's own quiz attempts - just their
+    students' results.
+    """
+    teacher_courses = _teacher_courses()
+    course_ids = {c.id for c in teacher_courses}
+    filter_course_id = request.args.get("course_id", type=int)
+
+    submitted = (
+        Quiz.query.join(User, Quiz.student_id == User.id)
+        .filter(User.role == "student", Quiz.status == "submitted")
+        .order_by(Quiz.submitted_at.desc())
+        .all()
+    )
+
+    results = []
+    for quiz in submitted:
+        quiz_course_ids = set(quiz.get_course_ids())
+        if not (course_ids & quiz_course_ids):
+            continue
+        if filter_course_id and filter_course_id not in quiz_course_ids:
+            continue
+        results.append(quiz)
+
+    return render_template(
+        "teacher/student_results.html",
+        results=results,
+        teacher_courses=teacher_courses,
+        filter_course_id=filter_course_id,
+    )
+
+
+def _get_visible_student_quiz(quiz_id):
+    quiz = Quiz.query.get_or_404(quiz_id)
+    if quiz.status != "submitted" or not quiz.student or not quiz.student.is_student:
+        abort(403)
+    course_ids = {c.id for c in _teacher_courses()}
+    if not (course_ids & set(quiz.get_course_ids())):
+        abort(403)
+    return quiz
+
+
+@teacher_bp.route("/results/<int:quiz_id>")
+@login_required
+@teacher_required
+def student_quiz_result(quiz_id):
+    quiz = _get_visible_student_quiz(quiz_id)
+    questions = quiz.get_questions()
+    answers = quiz.get_answers()
+    review = []
+    for i, q in enumerate(questions):
+        chosen = answers[i] if i < len(answers) else None
+        review.append({
+            **q,
+            "chosen_index": chosen,
+            "is_correct": chosen is not None and chosen == q["correct_index"],
+        })
+    return render_template("teacher/student_quiz_result.html", quiz=quiz, review=review)

@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Student Results{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>Student Results</h1>
+    <p class="lede">Quiz attempts by your students on the subjects you teach.</p>
+  </div>
+</div>
+
+{% if teacher_courses %}
+  <div class="quiz-subject-list" style="margin-bottom:24px; gap:8px; display:flex; flex-wrap:wrap;">
+    <a href="{{ url_for('teacher.student_results') }}"
+       class="filter-chip {{ 'active' if not filter_course_id else '' }}">All subjects</a>
+    {% for c in teacher_courses %}
+      <a href="{{ url_for('teacher.student_results', course_id=c.id) }}"
+         class="filter-chip {{ 'active' if filter_course_id == c.id else '' }}">{{ c.name }}</a>
+    {% endfor %}
+  </div>
+{% endif %}
+
+{% if results %}
+  <div class="quiz-history-list">
+    {% for quiz in results %}
+      <a href="{{ url_for('teacher.student_quiz_result', quiz_id=quiz.id) }}" class="card"
+         style="color:inherit; display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+        <div>
+          <div class="doc-title">{{ quiz.student.full_name }}</div>
+          <div class="hint">{{ quiz.title }} &middot; {{ quiz.submitted_at.strftime('%d %b %Y, %H:%M') }}</div>
+        </div>
+        <div class="mono">{{ quiz.score }}/{{ quiz.total }}</div>
+      </a>
+    {% endfor %}
+  </div>
+{% else %}
+  <div class="empty-state card">
+    <h3>No results yet</h3>
+    <p>Once a student takes a quiz on your subjects, their results will show up here.</p>
+  </div>
+{% endif %}
+{% endblock %}

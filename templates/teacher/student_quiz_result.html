@@ -1,10 +1,10 @@
 {% extends "base.html" %}
-{% block title %}Quiz Result{% endblock %}
+{% block title %}{{ quiz.student.full_name }}'s Result{% endblock %}
 {% block content %}
 <div class="page-header">
   <div>
-    <h1>{{ quiz.title }}</h1>
-    <p class="lede">Submitted {{ quiz.submitted_at.strftime('%d %b %Y, %H:%M') }}</p>
+    <h1>{{ quiz.student.full_name }}</h1>
+    <p class="lede">{{ quiz.title }} &middot; Submitted {{ quiz.submitted_at.strftime('%d %b %Y, %H:%M') }}</p>
   </div>
 </div>
 
@@ -33,10 +33,10 @@
       {% endfor %}
     </div>
     {% if q.chosen_index is none %}
-      <p class="hint">You didn't answer this one.</p>
+      <p class="hint">No answer was given for this one.</p>
     {% endif %}
   </div>
 {% endfor %}
 
-<a href="{{ url_for('quiz.new') }}" class="btn btn-outline">Take another quiz</a>
+<a href="{{ url_for('teacher.student_results') }}" class="btn btn-outline">Back to results</a>
 {% endblock %}

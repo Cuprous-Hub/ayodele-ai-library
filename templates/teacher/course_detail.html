@@ -8,10 +8,13 @@
     <h1>{{ course.name }}</h1>
     <p class="lede mono">{{ course.code }}</p>
   </div>
-  <form method="POST" action="{{ url_for('teacher.delete_course', course_id=course.id) }}"
-        onsubmit="return confirm('Delete this entire course and all its documents? This cannot be undone.');">
-    <button type="submit" class="btn btn-danger-outline btn-sm">Delete course</button>
-  </form>
+  <div style="display:flex; gap:10px; align-items:flex-start;">
+    <a href="{{ url_for('teacher.student_results', course_id=course.id) }}" class="btn btn-outline btn-sm">Student results</a>
+    <form method="POST" action="{{ url_for('teacher.delete_course', course_id=course.id) }}"
+          onsubmit="return confirm('Delete this entire course and all its documents? This cannot be undone.');">
+      <button type="submit" class="btn btn-danger-outline btn-sm">Delete course</button>
+    </form>
+  </div>
 </div>
 
 {% if course.description %}

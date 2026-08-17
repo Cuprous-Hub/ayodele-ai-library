@@ -23,6 +23,18 @@ def student_required(view_func):
     return wrapped
 
 
+def student_or_teacher_required(view_func):
+    @wraps(view_func)
+    def wrapped(*args, **kwargs):
+        if not current_user.is_authenticated or not (
+            current_user.is_student or current_user.is_teacher
+        ):
+            abort(403)
+        return view_func(*args, **kwargs)
+
+    return wrapped
+
+
 def class_teacher_required(view_func):
     @wraps(view_func)
     def wrapped(*args, **kwargs):

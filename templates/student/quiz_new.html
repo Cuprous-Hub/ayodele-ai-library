@@ -4,7 +4,11 @@
 <div class="page-header">
   <div>
     <h1>Quiz</h1>
-    <p class="lede">Pick the subjects you've been reading, how many questions you want, and a timer. The questions are generated from your teachers' notes.</p>
+    {% if current_user.is_teacher %}
+      <p class="lede">Pick the subjects you teach, how many questions you want, and a timer. The questions are generated from the notes you've uploaded.</p>
+    {% else %}
+      <p class="lede">Pick the subjects you've been reading, how many questions you want, and a timer. The questions are generated from your teachers' notes.</p>
+    {% endif %}
   </div>
 </div>
 

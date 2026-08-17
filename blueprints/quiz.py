@@ -5,7 +5,7 @@ from flask_login import login_required, current_user
 
 from extensions import db
 from models import Course, Document, Quiz
-from utils.decorators import student_required
+from utils.decorators import student_or_teacher_required
 from utils.ai_summarizer import generate_quiz, QuizGenerationError
 
 quiz_bp = Blueprint("quiz", __name__, url_prefix="/student/quiz")
@@ -16,14 +16,22 @@ DURATION_CHOICES = [5, 10, 15, 20, 30, 45]
 
 @quiz_bp.route("/new", methods=["GET", "POST"])
 @login_required
-@student_required
+@student_or_teacher_required
 def new():
-    accessible = current_user.accessible_levels
-    courses = (
-        Course.query.filter(Course.level.in_(accessible))
-        .order_by(Course.level, Course.name)
-        .all()
-    )
+    if current_user.is_teacher:
+        # Teachers quiz themselves on the subjects they teach.
+        courses = (
+            Course.query.filter_by(teacher_id=current_user.id)
+            .order_by(Course.level, Course.name)
+            .all()
+        )
+    else:
+        accessible = current_user.accessible_levels
+        courses = (
+            Course.query.filter(Course.level.in_(accessible))
+            .order_by(Course.level, Course.name)
+            .all()
+        )
     # Only offer courses that actually have summarized/readable material.
     courses_with_notes = [c for c in courses if any(d.full_text for d in c.documents)]
 
@@ -87,7 +95,7 @@ def _get_owned_quiz(quiz_id):
 
 @quiz_bp.route("/<int:quiz_id>/take")
 @login_required
-@student_required
+@student_or_teacher_required
 def take(quiz_id):
     quiz = _get_owned_quiz(quiz_id)
     if quiz.status != "in_progress":
@@ -105,7 +113,7 @@ def take(quiz_id):
 
 @quiz_bp.route("/<int:quiz_id>/submit", methods=["POST"])
 @login_required
-@student_required
+@student_or_teacher_required
 def submit(quiz_id):
     quiz = _get_owned_quiz(quiz_id)
     if quiz.status != "in_progress":
@@ -139,7 +147,7 @@ def submit(quiz_id):
 
 @quiz_bp.route("/<int:quiz_id>/result")
 @login_required
-@student_required
+@student_or_teacher_required
 def result(quiz_id):
     quiz = _get_owned_quiz(quiz_id)
     if quiz.status != "submitted":
@@ -159,7 +167,7 @@ def result(quiz_id):
 
 @quiz_bp.route("/history")
 @login_required
-@student_required
+@student_or_teacher_required
 def history():
     quizzes = (
         Quiz.query.filter_by(student_id=current_user.id, status="submitted")
