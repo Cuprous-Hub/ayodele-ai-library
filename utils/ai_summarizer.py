@@ -186,12 +186,15 @@ def generate_quiz(subject_docs, num_questions):
             "None of the selected subjects have readable notes to build a quiz from yet."
         )
 
-    per_subject_cap = max(2000, MAX_CHARS // max(1, len(subject_docs)))
+    per_subject_cap = max(1000, QUIZ_MAX_CHARS // max(1, len(subject_docs)))
     blocks = []
     for doc in subject_docs:
         trimmed = doc["text"].strip()[:per_subject_cap]
         blocks.append(f'Subject: "{doc["subject"]}"\n{trimmed}')
     combined_text = "\n\n---\n\n".join(blocks)
+    # Hard ceiling regardless of subject count or per-subject math above -
+    # guarantees the outgoing request body can never balloon past this size.
+    combined_text = combined_text[:QUIZ_MAX_CHARS]
 
     raw_content = _call_groq(
         api_key,
