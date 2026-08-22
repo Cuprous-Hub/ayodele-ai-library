@@ -14,6 +14,8 @@ GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 # school course document this is generous; very long textbooks would need
 # chunking, which is a good future improvement.
 MAX_CHARS = 18000
+QUIZ_MAX_CHARS = 10000
+
 
 SYSTEM_PROMPT = (
     "You are an assistant that helps secondary school students understand "
