@@ -1,12 +1,14 @@
 from datetime import datetime
+import random
 
 from flask import Blueprint, render_template, redirect, url_for, flash, request, abort, jsonify
 from flask_login import login_required, current_user
 
 from extensions import db
 from models import Course, Document, Quiz
-from utils.decorators import student_required
+from utils.decorators import student_or_teacher_required
 from utils.ai_summarizer import generate_quiz, QuizGenerationError
+from utils.question_bank import get_banked_questions, save_questions_to_bank, dedupe_questions
 
 quiz_bp = Blueprint("quiz", __name__, url_prefix="/student/quiz")
 
@@ -16,14 +18,22 @@ DURATION_CHOICES = [5, 10, 15, 20, 30, 45]
 
 @quiz_bp.route("/new", methods=["GET", "POST"])
 @login_required
-@student_required
+@student_or_teacher_required
 def new():
-    accessible = current_user.accessible_levels
-    courses = (
-        Course.query.filter(Course.level.in_(accessible))
-        .order_by(Course.level, Course.name)
-        .all()
-    )
+    if current_user.is_teacher:
+        # Teachers quiz themselves on the subjects they teach.
+        courses = (
+            Course.query.filter_by(teacher_id=current_user.id)
+            .order_by(Course.level, Course.name)
+            .all()
+        )
+    else:
+        accessible = current_user.accessible_levels
+        courses = (
+            Course.query.filter(Course.level.in_(accessible))
+            .order_by(Course.level, Course.name)
+            .all()
+        )
     # Only offer courses that actually have summarized/readable material.
     courses_with_notes = [c for c in courses if any(d.full_text for d in c.documents)]
 
@@ -53,10 +63,29 @@ def new():
             if texts:
                 subject_docs.append({"subject": course.name, "text": "\n\n".join(texts)})
 
-        try:
-            questions = generate_quiz(subject_docs, num_questions)
-        except QuizGenerationError as exc:
-            flash(str(exc), "danger")
+        # Draw from the question bank first (instant, no AI call needed),
+        # then only ask the AI to generate however many are still missing.
+        banked = get_banked_questions([c.id for c in selected_courses], num_questions)
+        remaining = max(0, num_questions - len(banked))
+
+        fresh = []
+        if remaining > 0:
+            try:
+                fresh = generate_quiz(subject_docs, remaining)
+            except QuizGenerationError as exc:
+                if not banked:
+                    flash(str(exc), "danger")
+                    return redirect(url_for("quiz.new"))
+                # The bank alone can still make a (shorter) quiz - carry on.
+            else:
+                save_questions_to_bank(selected_courses, fresh)
+
+        questions = dedupe_questions(banked + fresh)
+        random.shuffle(questions)
+        questions = questions[:num_questions]
+
+        if not questions:
+            flash("Not enough quiz material yet for these subjects. Try again once more notes are uploaded.", "danger")
             return redirect(url_for("quiz.new"))
 
         quiz = Quiz(
@@ -87,7 +116,7 @@ def _get_owned_quiz(quiz_id):
 
 @quiz_bp.route("/<int:quiz_id>/take")
 @login_required
-@student_required
+@student_or_teacher_required
 def take(quiz_id):
     quiz = _get_owned_quiz(quiz_id)
     if quiz.status != "in_progress":
@@ -105,7 +134,7 @@ def take(quiz_id):
 
 @quiz_bp.route("/<int:quiz_id>/submit", methods=["POST"])
 @login_required
-@student_required
+@student_or_teacher_required
 def submit(quiz_id):
     quiz = _get_owned_quiz(quiz_id)
     if quiz.status != "in_progress":
@@ -139,7 +168,7 @@ def submit(quiz_id):
 
 @quiz_bp.route("/<int:quiz_id>/result")
 @login_required
-@student_required
+@student_or_teacher_required
 def result(quiz_id):
     quiz = _get_owned_quiz(quiz_id)
     if quiz.status != "submitted":
@@ -159,7 +188,7 @@ def result(quiz_id):
 
 @quiz_bp.route("/history")
 @login_required
-@student_required
+@student_or_teacher_required
 def history():
     quizzes = (
         Quiz.query.filter_by(student_id=current_user.id, status="submitted")

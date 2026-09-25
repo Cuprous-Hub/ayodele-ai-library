@@ -1,6 +1,6 @@
-#Oya, last 0ne fr. Mehn
 import os
 import uuid
+from io import BytesIO
 
 from flask import (
     Blueprint, render_template, redirect, url_for, flash, request,
@@ -10,10 +10,11 @@ from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 
 from extensions import db
-from models import Course, Document, User
+from models import Course, Document, User, Quiz
 from utils.decorators import teacher_required, class_teacher_required
 from utils.file_parser import extract_text, ExtractionError
 from utils.ai_summarizer import summarize_document, SummarizationError
+from utils.file_storage import upload_file, download_file, delete_file, delete_course_files, StorageError
 
 teacher_bp = Blueprint("teacher", __name__, url_prefix="/teacher")
 
@@ -110,12 +111,14 @@ def upload_document(course_id):
     if not title:
         title = os.path.splitext(secure_filename(uploaded_file.filename))[0]
 
-    course_folder = os.path.join(current_app.config["UPLOAD_FOLDER"], str(course.id))
-    os.makedirs(course_folder, exist_ok=True)
-
     stored_filename = f"{uuid.uuid4().hex}.{ext}"
-    filepath = os.path.join(course_folder, stored_filename)
-    uploaded_file.save(filepath)
+    file_bytes = uploaded_file.read()
+
+    try:
+        upload_file(course.id, stored_filename, file_bytes, uploaded_file.mimetype)
+    except StorageError as exc:
+        flash(f"Upload failed: {exc}", "danger")
+        return redirect(url_for("teacher.course_detail", course_id=course.id))
 
     document = Document(
         course_id=course.id,
@@ -128,15 +131,18 @@ def upload_document(course_id):
     db.session.add(document)
     db.session.commit()
 
-    _process_document(document, filepath)
+    _process_document(document, BytesIO(file_bytes))
 
     return redirect(url_for("teacher.course_detail", course_id=course.id))
 
 
-def _process_document(document, filepath):
-    """Extract text and request an AI summary, recording success or failure."""
+def _process_document(document, file_obj):
+    """Extract text and request an AI summary, recording success or failure.
+    file_obj: a file-like object (e.g. BytesIO) positioned at the start -
+    pypdf / python-docx / python-pptx all accept a stream just as happily
+    as a filesystem path."""
     try:
-        text = extract_text(filepath, document.file_type)
+        text = extract_text(file_obj, document.file_type)
         document.full_text = text
         db.session.commit()
 
@@ -161,16 +167,15 @@ def resummarize(document_id):
     document = Document.query.get_or_404(document_id)
     course = _get_owned_course(document.course_id)
 
-    filepath = os.path.join(
-        current_app.config["UPLOAD_FOLDER"], str(course.id), document.stored_filename
-    )
-    if not os.path.exists(filepath):
-        flash("The original file is missing from the server.", "danger")
+    try:
+        file_bytes = download_file(course.id, document.stored_filename)
+    except StorageError:
+        flash("The original file is missing from storage.", "danger")
         return redirect(url_for("teacher.course_detail", course_id=course.id))
 
     document.status = "pending"
     db.session.commit()
-    _process_document(document, filepath)
+    _process_document(document, BytesIO(file_bytes))
 
     if document.status == "done":
         flash("Summary regenerated.", "success")
@@ -186,11 +191,10 @@ def delete_document(document_id):
     document = Document.query.get_or_404(document_id)
     course = _get_owned_course(document.course_id)
 
-    filepath = os.path.join(
-        current_app.config["UPLOAD_FOLDER"], str(course.id), document.stored_filename
-    )
-    if os.path.exists(filepath):
-        os.remove(filepath)
+    try:
+        delete_file(course.id, document.stored_filename)
+    except StorageError:
+        pass  # if it's already gone from storage, still remove the DB row
 
     db.session.delete(document)
     db.session.commit()
@@ -203,14 +207,12 @@ def delete_document(document_id):
 @teacher_required
 def delete_course(course_id):
     course = _get_owned_course(course_id)
-    course_folder = os.path.join(current_app.config["UPLOAD_FOLDER"], str(course.id))
+    course_id_for_cleanup = course.id
 
     db.session.delete(course)
     db.session.commit()
 
-    if os.path.isdir(course_folder):
-        import shutil
-        shutil.rmtree(course_folder, ignore_errors=True)
+    delete_course_files(course_id_for_cleanup)
 
     flash(f"Course '{course.name}' deleted.", "info")
     return redirect(url_for("teacher.dashboard"))
@@ -317,4 +319,77 @@ def promote_confirm():
         "success",
     )
     return redirect(url_for("teacher.dashboard"))
-#welllll....
+
+
+def _teacher_courses():
+    return (
+        Course.query.filter_by(teacher_id=current_user.id)
+        .order_by(Course.level, Course.name)
+        .all()
+    )
+
+
+@teacher_bp.route("/results")
+@login_required
+@teacher_required
+def student_results():
+    """Quiz attempts by students on subjects this teacher teaches.
+
+    Only quizzes taken by users with role 'student' are shown here, so a
+    teacher never sees another teacher's own quiz attempts - just their
+    students' results.
+    """
+    teacher_courses = _teacher_courses()
+    course_ids = {c.id for c in teacher_courses}
+    filter_course_id = request.args.get("course_id", type=int)
+
+    submitted = (
+        Quiz.query.join(User, Quiz.student_id == User.id)
+        .filter(User.role == "student", Quiz.status == "submitted")
+        .order_by(Quiz.submitted_at.desc())
+        .all()
+    )
+
+    results = []
+    for quiz in submitted:
+        quiz_course_ids = set(quiz.get_course_ids())
+        if not (course_ids & quiz_course_ids):
+            continue
+        if filter_course_id and filter_course_id not in quiz_course_ids:
+            continue
+        results.append(quiz)
+
+    return render_template(
+        "teacher/student_results.html",
+        results=results,
+        teacher_courses=teacher_courses,
+        filter_course_id=filter_course_id,
+    )
+
+
+def _get_visible_student_quiz(quiz_id):
+    quiz = Quiz.query.get_or_404(quiz_id)
+    if quiz.status != "submitted" or not quiz.student or not quiz.student.is_student:
+        abort(403)
+    course_ids = {c.id for c in _teacher_courses()}
+    if not (course_ids & set(quiz.get_course_ids())):
+        abort(403)
+    return quiz
+
+
+@teacher_bp.route("/results/<int:quiz_id>")
+@login_required
+@teacher_required
+def student_quiz_result(quiz_id):
+    quiz = _get_visible_student_quiz(quiz_id)
+    questions = quiz.get_questions()
+    answers = quiz.get_answers()
+    review = []
+    for i, q in enumerate(questions):
+        chosen = answers[i] if i < len(answers) else None
+        review.append({
+            **q,
+            "chosen_index": chosen,
+            "is_correct": chosen is not None and chosen == q["correct_index"],
+        })
+    return render_template("teacher/student_quiz_result.html", quiz=quiz, review=review)

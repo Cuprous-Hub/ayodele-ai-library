@@ -1,4 +1,3 @@
-#broo the code is public and i'm talking like this?
 import os
 from dotenv import load_dotenv
 
@@ -25,6 +24,12 @@ class Config:
     UPLOAD_FOLDER = os.path.join(basedir, "uploads")
     ALLOWED_EXTENSIONS = {"pdf", "docx", "pptx"}
     MAX_CONTENT_LENGTH = int(os.environ.get("MAX_UPLOAD_MB", 20)) * 1024 * 1024
+
+    # --- Supabase Storage, for course documents (survives redeploys, unlike
+    # UPLOAD_FOLDER above which lives on the app's local, ephemeral disk) ---
+    SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
+    SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY", "")
+    SUPABASE_STORAGE_BUCKET = os.environ.get("SUPABASE_STORAGE_BUCKET", "course-documents")
 
     GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
     GROQ_MODEL = os.environ.get("GROQ_MODEL", "llama-3.3-70b-versatile")

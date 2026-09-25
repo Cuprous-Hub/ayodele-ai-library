@@ -14,9 +14,17 @@
     <div class="card quiz-question-card">
       <div class="quiz-question-head">
         <span class="filter-chip">{{ q.subject }}</span>
+        {% if q.difficulty %}
+          <span class="status-pill quiz-difficulty-{{ q.difficulty|lower }}">{{ q.difficulty }}</span>
+        {% endif %}
         <span class="hint">Question {{ loop.index }} of {{ questions|length }}</span>
       </div>
       <p class="quiz-question-text">{{ q.question }}</p>
+      {% if q.tags %}
+        <div class="quiz-tag-row">
+          {% for tag in q.tags %}<span class="filter-chip">#{{ tag }}</span>{% endfor %}
+        </div>
+      {% endif %}
       <div class="quiz-options">
         {% for option in q.options %}
           <label class="quiz-option-item">

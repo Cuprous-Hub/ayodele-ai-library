@@ -1,10 +1,14 @@
 {% extends "base.html" %}
-{% block title %}New AI Quiz{% endblock %}
+{% block title %}New Quiz{% endblock %}
 {% block content %}
 <div class="page-header">
   <div>
-    <h1>AI Quiz</h1>
-    <p class="lede">Pick the subjects you've been reading, how many questions you want, and a timer. The questions are generated from your teachers' notes.</p>
+    <h1>Quiz</h1>
+    {% if current_user.is_teacher %}
+      <p class="lede">Pick the subjects you teach, how many questions you want, and a timer. The questions are generated from the notes you've uploaded.</p>
+    {% else %}
+      <p class="lede">Pick the subjects you've been reading, how many questions you want, and a timer. The questions are generated from your teachers' notes.</p>
+    {% endif %}
   </div>
 </div>
 

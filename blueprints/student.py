@@ -32,4 +32,3 @@ def course_detail(course_id):
     if course.level not in current_user.accessible_levels:
         abort(403)
     return render_template("student/course_detail.html", course=course)
-#we thank God for life.

@@ -150,22 +150,31 @@ QUIZ_SYSTEM_PROMPT = (
     "You are a quiz-writer for a secondary school AI study app. You will be "
     "given text extracted from one or more subjects' course notes, each "
     "labeled with its subject name, plus a target number of questions. "
-    "Write quiz questions using ONLY facts found in the provided text - "
-    "never invent facts or use outside knowledge. Mix multiple-choice and "
-    "true/false questions. Spread questions across the given subjects as "
-    "evenly as possible. Respond with ONLY valid JSON, no markdown fences, "
-    "no commentary, matching exactly this shape:\n"
+    "Write multiple-choice quiz questions using ONLY facts found in the "
+    "provided text - never invent facts or use outside knowledge. Every "
+    "question must be multiple-choice with exactly 4 answer options and "
+    "exactly one correct answer. Do not write true/false questions. Spread "
+    "questions across the given subjects as evenly as possible. Respond "
+    "with ONLY valid JSON, no markdown fences, no commentary, matching "
+    "exactly this shape:\n"
     '{"questions": [\n'
     '  {"type": "mcq", "subject": "Subject name", "question": "...", '
-    '"options": ["A", "B", "C", "D"], "correct_index": 0},\n'
-    '  {"type": "true_false", "subject": "Subject name", "question": "...", '
-    '"options": ["True", "False"], "correct_index": 1}\n'
+    '"options": ["A", "B", "C", "D"], "correct_index": 0, '
+    '"difficulty": "Easy", "tags": ["short-topic-keyword"], '
+    '"overall_explanation": "Why the correct option is right.", '
+    '"distractor_explanations": {"1": "Why option index 1 is wrong.", '
+    '"2": "Why option index 2 is wrong."}}\n'
     "]}\n"
-    "Rules: mcq questions must have exactly 4 options; true_false questions "
-    'must have options exactly ["True", "False"]. correct_index is the '
-    "0-based index of the correct option. Produce exactly the requested "
-    "number of questions if the material supports it; if the material is "
-    "too thin, produce as many good questions as you reasonably can."
+    "Rules: every question must have exactly 4 options. correct_index is "
+    "the 0-based index of the correct option. difficulty must be one of "
+    "Easy, Medium, Hard. tags is a short list (1-3) of lowercase topic "
+    "keywords. distractor_explanations is keyed by the 0-based index of "
+    "each WRONG option (never the correct one) and briefly explains why "
+    "that option is incorrect - these four fields are optional but include "
+    "them whenever you reasonably can, since students use them to review "
+    "their mistakes. Produce exactly the requested number of questions if "
+    "the material supports it; if the material is too thin, produce as "
+    "many good questions as you reasonably can."
 )
 
 
@@ -231,15 +240,13 @@ def _parse_quiz_json(raw_content, num_questions):
         options = item.get("options", [])
         correct_index = item.get("correct_index")
 
-        if qtype not in ("mcq", "true_false"):
+        if qtype != "mcq":
             continue
         if not question or not subject:
             continue
         if not isinstance(options, list) or not all(isinstance(o, str) for o in options):
             continue
-        if qtype == "mcq" and len(options) != 4:
-            continue
-        if qtype == "true_false" and [o.strip().lower() for o in options] != ["true", "false"]:
+        if len(options) != 4:
             continue
         if not isinstance(correct_index, int) or not (0 <= correct_index < len(options)):
             continue
@@ -250,12 +257,58 @@ def _parse_quiz_json(raw_content, num_questions):
             "question": question,
             "options": [o.strip() for o in options],
             "correct_index": correct_index,
+            **_extract_optional_metadata(item, correct_index, len(options)),
         })
 
     if not questions:
         raise QuizGenerationError("The AI wasn't able to generate valid questions from these notes. Try different subjects.")
 
     return questions[:num_questions]
+
+
+_VALID_DIFFICULTIES = {"Easy", "Medium", "Hard"}
+
+
+def _extract_optional_metadata(item, correct_index, num_options):
+    """Pull out the extra (optional) quiz-review fields the AI may have
+    supplied - difficulty, tags, and per-option explanations. Anything
+    missing or malformed is just left out rather than failing the whole
+    question, since these fields are a bonus on top of a valid question."""
+    metadata = {}
+
+    difficulty = str(item.get("difficulty", "")).strip().title()
+    if difficulty in _VALID_DIFFICULTIES:
+        metadata["difficulty"] = difficulty
+
+    raw_tags = item.get("tags", [])
+    if isinstance(raw_tags, list):
+        tags = [str(t).strip().lower() for t in raw_tags if str(t).strip()]
+        if tags:
+            metadata["tags"] = tags[:5]
+
+    overall = str(item.get("overall_explanation", "")).strip()
+    if overall:
+        metadata["overall_explanation"] = overall
+
+    raw_distractors = item.get("distractor_explanations", {})
+    if isinstance(raw_distractors, dict):
+        distractors = {}
+        for key, text in raw_distractors.items():
+            try:
+                idx = int(key)
+            except (TypeError, ValueError):
+                continue
+            # Never accept an explanation attached to the correct answer,
+            # and ignore indices outside this question's option list.
+            if idx == correct_index or not (0 <= idx < num_options):
+                continue
+            text = str(text).strip()
+            if text:
+                distractors[str(idx)] = text
+        if distractors:
+            metadata["distractor_explanations"] = distractors
+
+    return metadata
 
 
 def _parse_summary_json(raw_content):

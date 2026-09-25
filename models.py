@@ -189,3 +189,98 @@ class Quiz(db.Model):
 
     def __repr__(self):
         return f"<Quiz {self.id} for user {self.student_id} ({self.status})>"
+
+
+class BankedQuestion(db.Model):
+    """A reusable multiple-choice question generated from a course's notes.
+
+    Once the AI generates a question for a course, it's saved here so
+    future quizzes on the same subject can reuse it instead of always
+    calling the AI fresh - a growing "question bank" per subject.
+    """
+    id = db.Column(db.Integer, primary_key=True)
+    course_id = db.Column(db.Integer, db.ForeignKey("course.id"), nullable=False)
+    subject = db.Column(db.String(150), nullable=False)
+
+    question = db.Column(db.Text, nullable=False)
+    options_json = db.Column(db.Text, nullable=False)  # JSON list of 4 option strings
+    correct_index = db.Column(db.Integer, nullable=False)
+
+    # --- richer metadata, optional so older rows keep working untouched ---
+    difficulty = db.Column(db.String(20), nullable=True)         # Easy / Medium / Hard
+    core_topic = db.Column(db.String(120), nullable=True)        # e.g. "Cell Biology"
+    sub_concept = db.Column(db.String(150), nullable=True)       # e.g. "Cell Structures"
+    question_format = db.Column(db.String(60), nullable=True)    # e.g. "Sequential Pathway"
+    tags_json = db.Column(db.Text, nullable=True)                # JSON list of strings
+    overall_explanation = db.Column(db.Text, nullable=True)
+    # JSON object keyed by the 0-based option index, explaining why that
+    # specific wrong option is wrong (only wrong options need an entry).
+    distractor_explanations_json = db.Column(db.Text, nullable=True)
+    external_id = db.Column(db.String(60), nullable=True)  # id from an imported bank file, for traceability
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    course = db.relationship(
+        "Course", backref=db.backref("banked_questions", cascade="all, delete-orphan")
+    )
+
+    @staticmethod
+    def dump_options(options):
+        return json.dumps(options)
+
+    @staticmethod
+    def dump_json_field(value):
+        """Store a list/dict metadata field as JSON text, or None if empty."""
+        if not value:
+            return None
+        return json.dumps(value)
+
+    def get_options(self):
+        try:
+            return json.loads(self.options_json)
+        except (ValueError, TypeError):
+            return []
+
+    def get_tags(self):
+        if not self.tags_json:
+            return []
+        try:
+            return json.loads(self.tags_json)
+        except (ValueError, TypeError):
+            return []
+
+    def get_distractor_explanations(self):
+        """Return {option_index (int): explanation} for this question's
+        wrong options."""
+        if not self.distractor_explanations_json:
+            return {}
+        try:
+            raw = json.loads(self.distractor_explanations_json)
+        except (ValueError, TypeError):
+            return {}
+        # Keys are stored as strings in JSON; templates look these up by
+        # the stringified loop index, so keep them as strings here too.
+        return {str(k): v for k, v in raw.items()}
+
+    def to_question_dict(self):
+        """Shape matches what generate_quiz() returns (plus the optional
+        metadata keys below), so a banked question can be mixed into the
+        same questions list a fresh quiz uses regardless of where it
+        came from."""
+        return {
+            "type": "mcq",
+            "subject": self.subject,
+            "question": self.question,
+            "options": self.get_options(),
+            "correct_index": self.correct_index,
+            "difficulty": self.difficulty,
+            "core_topic": self.core_topic,
+            "sub_concept": self.sub_concept,
+            "question_format": self.question_format,
+            "tags": self.get_tags(),
+            "overall_explanation": self.overall_explanation,
+            "distractor_explanations": self.get_distractor_explanations(),
+        }
+
+    def __repr__(self):
+        return f"<BankedQuestion {self.id} course={self.course_id}>"
