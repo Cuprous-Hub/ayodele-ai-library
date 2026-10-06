@@ -209,12 +209,16 @@ def delete_course(course_id):
     course = _get_owned_course(course_id)
     course_id_for_cleanup = course.id
 
+    course = _get_owned_course(course_id)
+    course_id_for_cleanup = course.id
+    course_name = course.name          # ← add this line, capture before delete
+
     db.session.delete(course)
     db.session.commit()
 
     delete_course_files(course_id_for_cleanup)
 
-    flash(f"Course '{course.name}' deleted.", "info")
+    flash(f"Course '{course_name}' deleted.", "info")   # ← use course_name, not course.name
     return redirect(url_for("teacher.dashboard"))
 
 
