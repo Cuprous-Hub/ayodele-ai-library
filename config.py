@@ -20,6 +20,15 @@ class Config:
     SECRET_KEY = os.environ.get("SECRET_KEY", "dev-key-change-me")
     SQLALCHEMY_DATABASE_URI = _database_uri()
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+        # Supabase (via pgbouncer) silently closes idle connections after a
+    # timeout; without these, a reused dead connection raises "SSL SYSCALL
+    # error: EOF detected". pool_pre_ping tests a connection before use and
+    # transparently replaces it if it's dead; pool_recycle proactively
+    # retires connections before Supabase's own timeout can hit them.
+    SQLALCHEMY_ENGINE_OPTIONS = {
+        "pool_pre_ping": True,
+        "pool_recycle": 280,
+    }
 
     UPLOAD_FOLDER = os.path.join(basedir, "uploads")
     ALLOWED_EXTENSIONS = {"pdf", "docx", "pptx"}
