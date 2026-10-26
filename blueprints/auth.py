@@ -4,7 +4,7 @@ from flask_login import login_user, logout_user, login_required, current_user
 from extensions import db
 from models import User
 from utils.mail import send_verification_email, send_password_reset_email, verify_token
-
+#...
 auth_bp = Blueprint("auth", __name__)
 
 
